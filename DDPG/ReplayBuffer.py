@@ -4,9 +4,14 @@ import tensorflow as tf
 
 class ReplayBuffer:
     def __init__(self, mem_size, obs_shape, action_components):
+        # Tamanho maximo da memoria e contador da quantidade
+        # de experiencias que ja foram armazenadas
         self.mem_size = mem_size
         self.mem_counter = 0
 
+        # Salvando as observacoes, acoes, recompensas e dones como ndarrays
+        # Obs:. Dependendo do ambiente, essa implementacao pode utilizar muita
+        # memoria (No caso de ambientes que possuem algum tipo de otimizacao de memoria)
         self.observations = np.zeros((self.mem_size, *obs_shape), dtype=np.float32)
         self.actions = np.zeros((self.mem_size, action_components), dtype=np.float32)
         self.rewards = np.zeros(self.mem_size, dtype=np.float32)
@@ -25,6 +30,8 @@ class ReplayBuffer:
         self.mem_counter += 1
 
     def sample_batch(self, batch_size, convert_to_tensors=False):
+        # Garantindo que nao iremos fazer um sample de uma quantidade
+        # de experiences superior ao que temos armazenado
         max_mem = min(self.mem_counter, self.mem_size)
 
         batch = np.random.choice(max_mem, batch_size, replace=False)
@@ -45,4 +52,5 @@ class ReplayBuffer:
         return observations, actions, rewards, new_observations, terminals
 
     def __len__(self):
+        # Caso seja preciso calcular o tamanho do buffer (usado em Agent)
         return self.mem_counter

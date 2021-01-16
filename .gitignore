@@ -1,0 +1,11 @@
+#Executáveis e Arquivos Objetos
+*.o
+*.exe
+*.out
+*.app
+*.xml
+*.iml
+
+#Arquivos/Pastas do PyCharm
+.idea/
+__pycache__/
