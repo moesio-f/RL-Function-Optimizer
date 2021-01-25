@@ -1,5 +1,9 @@
 import tensorflow as tf
 import numpy as np
+import matplotlib as mpl
+from FunctionDrawer import *
+
+mpl.use('TkAgg')
 
 # Some functions to test
 def sphere(x):
@@ -24,3 +28,13 @@ def rastrigin(x):
   else:
     d = len(x)
   return 10*d + tf.reduce_sum(x**2 - 10*tf.cos(x * 2 * np.math.pi))
+
+def rosenbrock (x):
+  sum = 0
+  if isinstance(x, tf.Tensor):
+    d = x.shape[0]
+  else:
+    d = len(x)
+  for i in range(d-1):
+    sum += 100 * (x[i + 1] - x[i] ** 2) ** 2 + (x[i] - 1.0) ** 2
+  return sum
