@@ -1,10 +1,10 @@
-from ReplayBuffer import *
-from Networks import *
+from DDPG.ReplayBuffer import *
+from DDPG.Networks import *
 
 
 class DDPGAgent:
     def __init__(self, input_dims, action_components,
-                 env=None, alpha=0.001, beta=0.002, tau=0.005,
+                 max_action, min_action, alpha=0.001, beta=0.002, tau=0.005,
                  discount=0.99, units1=400, units2=300, buffer_size=1000000,
                  batch_size=32, noise=0.08, min_experience=None):
 
@@ -28,8 +28,8 @@ class DDPGAgent:
         self.noise = noise
 
         # Limites dos valores das acoes
-        self.max_action = env.action_space.high[0]
-        self.min_action = env.action_space.low[0]
+        self.max_action = max_action
+        self.min_action = min_action
 
         self.actor = ActorNetwork(action_components=self.action_components, units1=units1, units2=units2)
         self.critic = CriticNetwork(units1=units1, units2=units2)

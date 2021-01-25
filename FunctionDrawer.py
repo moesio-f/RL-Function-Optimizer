@@ -4,6 +4,9 @@ import numpy as np
 
 class FunctionDrawer(object):
   def __init__(self, function, range, resolution=80):
+    self.create_mesh(function, range, resolution)
+    
+  def create_mesh(self, function, range, resolution):
     self.function = function
     self.ax = plt.subplot(projection='3d')
     self.range = range
@@ -23,14 +26,19 @@ class FunctionDrawer(object):
 
     self.mesh = (X,Y,Z)
 
-  def show(self, **kwargs):
+  def draw_mesh(self, **kwargs):
+    self.ax.clear()
     self.ax.plot_surface(self.mesh[0],self.mesh[1],self.mesh[2],**kwargs)
-    plt.show()
+
+  def draw(self, **kwargs):
+    plt.pause(0.1)
+    plt.draw()
 
 
 # Some functions to test
-
+D = tf.random.uniform((2,), -2.0, 2.0)
 def sphere(x):
+  x = x + D
   return tf.reduce_sum(x*x)
 
 def ackley(x, a=20, b=0.2, c=2*np.math.pi):
