@@ -2,7 +2,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import numpy as np
-from FunctionDrawer import FunctionDrawer, sphere
+
+from functions import sphere, ackley, rastrigin
+from FunctionDrawer import FunctionDrawer
 from DDPG import Agent
 
 mpl.use('TkAgg')
@@ -12,7 +14,6 @@ STEPS = 50
 DIMENTION = 2
 INTERVAL = 5.12
 
-drawer = FunctionDrawer(sphere, INTERVAL)
 agent = Agent.DDPGAgent([2 * DIMENTION + 1], 2, 5.12, -5.12)
 
 
@@ -24,6 +25,7 @@ def get_gradient(function, position):
 
 
 def optimize(f, training=True, render=False):
+    drawer = FunctionDrawer(f, INTERVAL)
     for ep in range(EPISODES):
         if render:
             drawer.draw_mesh(alpha=0.5)
@@ -48,7 +50,7 @@ def optimize(f, training=True, render=False):
                 agent.learn()
 
             if render:
-                loss2d = sphere(tf.Variable([state[0], state[1]]))
+                loss2d = f(tf.Variable([state[0], state[1]]))
                 drawer.ax.scatter(state[0], state[1], loss2d, color='r')
                 drawer.draw()
 
@@ -57,7 +59,12 @@ def optimize(f, training=True, render=False):
                 break
 
 
-# for 2000 episodes:
-#   function = random_function() <--
-#   optimze(function)
-optimize(sphere)
+if __name__ == '__main__':
+    functions = [sphere, ackley, rastrigin]
+
+    for function in functions:
+        const = tf.random.uniform((DIMENTION,), -1, 1)
+
+        def f(x):
+            return function(x + const)
+        optimize(f)
