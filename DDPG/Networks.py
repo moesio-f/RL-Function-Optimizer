@@ -63,5 +63,5 @@ class ActorNetwork(keras.Model):
         mu = self.mu(prob)
 
         # Retorna uma acao com a quantidade de componentes
-        # Obs:. O valor de cada componente pertence ao intervalo (-1, 1])
+        # Obs:. O valor de cada componente pertence ao intervalo (-1, 1)
         return mu
