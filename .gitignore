@@ -9,3 +9,4 @@
 #Arquivos/Pastas do PyCharm
 .idea/
 __pycache__/
+venv

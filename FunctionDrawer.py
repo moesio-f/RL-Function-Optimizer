@@ -36,9 +36,7 @@ class FunctionDrawer(object):
 
 
 # Some functions to test
-D = tf.random.uniform((2,), -2.0, 2.0)
 def sphere(x):
-  x = x + D
   return tf.reduce_sum(x*x)
 
 def ackley(x, a=20, b=0.2, c=2*np.math.pi):
