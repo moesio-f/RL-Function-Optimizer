@@ -1,4 +1,4 @@
-#Executáveis e Arquivos Objetos
+# Executáveis e Arquivos Objetos
 *.o
 *.exe
 *.out
@@ -6,7 +6,11 @@
 *.xml
 *.iml
 
-#Arquivos/Pastas do PyCharm
+# Arquivos/Pastas do PyCharm
 .idea/
 __pycache__/
 venv
+
+# Arquivos/Pastas locais
+Testes/
+weights/

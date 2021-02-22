@@ -1,4 +1,4 @@
-from DDPG.Agent import *
+from DDPG_Agent import *
 import gym
 import matplotlib.pyplot as plt
 
