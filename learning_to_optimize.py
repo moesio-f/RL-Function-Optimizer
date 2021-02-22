@@ -57,7 +57,7 @@ def optimize(f, optimizer, f_name=None, training=True, render=False,
         position = tf.random.uniform(minval=LOW, maxval=HIGH, shape=(DIMS,))
         gradients, loss = get_gradient(f, position)
 
-        state = position  # tf.convert_to_tensor([position, gradients], dtype=tf.float32)
+        state = position
 
         for i in range(STEPS):
             action = optimizer.choose_action(observation=state, current_position=position, training=training)
@@ -65,7 +65,7 @@ def optimize(f, optimizer, f_name=None, training=True, render=False,
             new_position = position + action
             new_gradients, new_loss = get_gradient(f, new_position)
 
-            new_state = new_position  # tf.convert_to_tensor([new_position, new_gradients], dtype=tf.float32)
+            new_state = new_position
             reward = -loss
             episode_reward += reward
 

@@ -5,8 +5,8 @@ from datetime import datetime
 
 class DDPGAgent:
     def __init__(self, input_dims, action_components,
-                 high=1.0, low=-1.0, alpha=0.001, beta=0.002, tau=0.005,
-                 discount=0.99, units1=200, units2=150, buffer_size=900000,
+                 high=1.0, low=-1.0, alpha=0.0001, beta=0.001, tau=0.001,
+                 discount=0.99, units1=400, units2=300, buffer_size=900000,
                  batch_size=64, noise=0.06, min_experience=None):
 
         # Alguns hiperparametros
@@ -38,8 +38,8 @@ class DDPGAgent:
         self.target_critic = CriticNetwork(units1=units1, units2=units2, model_name='target_critic.h5')
 
         # Otimizadores que seram utilizados pelo actor e peo critic
-        self.actor_optimizer = keras.optimizers.Adam(lr=self.alpha)
-        self.critic_optimizer = keras.optimizers.Adam(lr=self.beta)
+        self.actor_optimizer = keras.optimizers.Adam(lr=self.alpha, clipnorm=1.0)
+        self.critic_optimizer = keras.optimizers.Adam(lr=self.beta, clipnorm=1.0)
 
         # Passando um tensor aleatorio pelas redes (buildar as redes)
         random_observation = tf.random.normal(shape=[1, *input_dims])
@@ -55,8 +55,8 @@ class DDPGAgent:
     def set_low_and_high(self, low, high):
         self.high = tf.constant(high, dtype=tf.float32)
         self.low = tf.constant(low, dtype=tf.float32)
-        self.actor.set_const(high)
-        self.target_actor.set_const(high)
+        self.actor.set_const(1.0)
+        self.target_actor.set_const(1.0)
 
     def update_target_actor(self, tau):
         weights = []
@@ -109,15 +109,14 @@ class DDPGAgent:
 
     def choose_action(self, observation, current_position, training=True):
         # Converte a observaca para um tensor e faz um pass foward no actor
-        batched_obs = tf.convert_to_tensor([observation], dtype=np.float32)
-        actions = self.actor(batched_obs)
+        batched_obs = tf.convert_to_tensor([observation], dtype=tf.float32)
+        action = self.actor(batched_obs)[0]
         if training:
             # Caso esteja em treino, adicionamos "ruido" na acao
             # Assim conseguimos balancear o exploration-exploitation
-            actions += tf.random.normal(shape=[self.action_components], mean=0.0,
-                                        stddev=self.noise)
+            action += tf.random.normal(shape=[self.action_components], mean=0.0,
+                                       stddev=self.noise)
 
-        action = actions[0]
         max_action = self.high - current_position
         min_action = self.low - current_position
         action = tf.clip_by_value(action, clip_value_min=min_action, clip_value_max=max_action)

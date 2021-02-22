@@ -18,7 +18,6 @@ class CriticNetwork(keras.Model):
 
         self.dense1 = keras.layers.Dense(units=self.units1, activation='relu')
         self.dense2 = keras.layers.Dense(units=self.units2, activation='relu')
-        # self.flatten = keras.layers.Flatten()
         self.q = keras.layers.Dense(units=1, activation='linear')
 
     def get_path(self, directory=None):
@@ -41,9 +40,8 @@ class CriticNetwork(keras.Model):
         self.save_weights(self.get_path(directory))
 
     def call(self, observation, action):
-        action_value = self.dense1(tf.concat([observation, action], axis=1))
-        action_value = self.dense2(action_value)
-        # action_value = self.flatten(action_value)
+        action_value = self.dense1(observation)
+        action_value = self.dense2(tf.concat([action_value, action], axis=1))
         q = self.q(action_value)
 
         # Retorna o q-value para esse par (observacao, acao)
@@ -63,7 +61,6 @@ class ActorNetwork(keras.Model):
 
         self.dense1 = keras.layers.Dense(units=self.units1, activation='relu')
         self.dense2 = keras.layers.Dense(units=self.units2, activation='relu')
-        # self.flatten = keras.layers.Flatten()
         self.mu = keras.layers.Dense(units=self.action_components, activation='tanh')
 
     def set_const(self, const):
