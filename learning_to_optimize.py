@@ -62,11 +62,11 @@ def optimize(f, optimizer, f_name=None, training=True, render=False,
         for i in range(STEPS):
             action = optimizer.choose_action(observation=state, current_position=position, training=training)
 
-            new_position = position + action
+            new_position = tf.clip_by_value(position + action, clip_value_min=LOW, clip_value_max=HIGH)
             new_gradients, new_loss = get_gradient(f, new_position)
 
             new_state = new_position
-            reward = -loss
+            reward = -new_loss
             episode_reward += reward
 
             # Teste usando máximo iterações como único critério de parada
@@ -119,8 +119,8 @@ if __name__ == '__main__':
     best_solution = tf.float32.max
 
     # No caso de uma única função, o agente treina em (episodes*total_training) episódios
-    for ep in range(total_training):
-        print('---current training: %d | best solution: %.2f---\n' % (ep, best_solution))
+    for training_step in range(total_training):
+        print('---current training: %d | best solution: %.2f---\n' % (training_step, best_solution))
         function = sphere
         low, high = get_low_and_high(function)
         agent.set_low_and_high(low, high)

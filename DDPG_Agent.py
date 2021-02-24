@@ -117,9 +117,9 @@ class DDPGAgent:
             action += tf.random.normal(shape=[self.action_components], mean=0.0,
                                        stddev=self.noise)
 
-        max_action = self.high - current_position
-        min_action = self.low - current_position
-        action = tf.clip_by_value(action, clip_value_min=min_action, clip_value_max=max_action)
+        # max_action = self.high - current_position
+        # min_action = self.low - current_position
+        # action = tf.clip_by_value(action, clip_value_min=min_action, clip_value_max=max_action)
 
         return action
 
