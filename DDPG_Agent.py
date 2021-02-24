@@ -123,6 +123,22 @@ class DDPGAgent:
 
         return action
 
+    def __get_critic_loss(self, observations, actions, rewards, new_observations, terminals):
+        target_actions = self.target_actor(new_observations)
+        target_critic_values = tf.squeeze(self.target_critic(new_observations, target_actions), axis=1)
+        critic_value = tf.squeeze(self.critic(observations, actions), axis=1)
+        target = tf.stop_gradient(rewards + self.discount * terminals * target_critic_values)
+        critic_loss = keras.losses.MSE(target, critic_value)
+
+        return critic_loss
+
+    def __get_actor_loss(self, observations):
+        new_policy_actions = self.actor(observations)
+        actor_loss = -self.critic(observations, new_policy_actions)
+        actor_loss = tf.math.reduce_mean(actor_loss)
+
+        return actor_loss
+
     def learn(self):
         if len(self.experience) < self.min_experience:
             return
@@ -132,32 +148,16 @@ class DDPGAgent:
             self.experience.sample_batch(self.batch_size, convert_to_tensors=True)
 
         with tf.GradientTape() as critic_tape:
-            # Obtendo as acoes que o target actor decidiu tomar nas novas observacoes
-            target_actions = self.target_actor(new_observations)
-            # Obtendo os valores que o target critic calculou com base nas
-            # novas observacoes e nas acoes tomadas pelo target actor
-            target_critic_values = tf.squeeze(self.target_critic(new_observations, target_actions), axis=1)
-            # Obtendo os valores que o critic previu para as observacoes (estados) atuais
-            # com acoes que foram tomadas pelo agente (actor)
-            critic_value = tf.squeeze(self.critic(observations, actions), axis=1)
-            # Calculando quais deveriam ter sido os valores que o critic deveria ter previsto
-            target = rewards + self.discount * terminals * target_critic_values
-            # Calcular a perda entre o esperado e o previsto pelo critic
-            critic_loss = keras.losses.MSE(target, critic_value)
+            critic_tape.watch(self.critic.trainable_variables)
+            critic_loss = self.__get_critic_loss(observations, actions, rewards, new_observations, terminals)
 
         # Aplicando os gradientes
         critic_grads = critic_tape.gradient(critic_loss, self.critic.trainable_variables)
         self.critic_optimizer.apply_gradients(zip(critic_grads, self.critic.trainable_variables))
 
         with tf.GradientTape() as actor_tape:
-            # Calculando as acoes que o actor tomaria para as observacoes atuais
-            new_policy_actions = self.actor(observations)
-            # Utilizando o critic para saber o qual bom foram as acoes e ja determinar
-            # a funcao objetiva que precisa ser maximizada (Como usamos gradient descent,
-            # precisamos adicionar o - na frente)
-            actor_loss = -self.critic(observations, new_policy_actions)
-            # Calculando a media desses valores e reduzindo para um escalar
-            actor_loss = tf.math.reduce_mean(actor_loss)
+            actor_tape.watch(self.actor.trainable_variables)
+            actor_loss = self.__get_actor_loss(observations)
 
         # Aplicando o gradiente
         actor_grads = actor_tape.gradient(actor_loss, self.actor.trainable_variables)
