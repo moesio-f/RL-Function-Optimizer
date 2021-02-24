@@ -40,7 +40,7 @@ class DDPGAgent:
                                          model_name='target_actor.h5', const=high)
         self.target_critic = CriticNetwork(units1=units1, units2=units2, model_name='target_critic.h5')
 
-        # Otimizadores que seram utilizados pelo actor e peo critic
+        # Otimizadores que serão utilizados pelo actor e peloo critic
         self.actor_optimizer = keras.optimizers.Adam(lr=self.alpha, clipnorm=1.0)
         self.critic_optimizer = keras.optimizers.Adam(lr=self.beta, clipnorm=1.0)
 
