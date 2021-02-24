@@ -7,7 +7,8 @@ class DDPGAgent:
     def __init__(self, input_dims, action_components,
                  high=1.0, low=-1.0, alpha=0.0001, beta=0.001, tau=0.001,
                  discount=0.99, units1=400, units2=300, buffer_size=900000,
-                 batch_size=64, noise=0.06, min_experience=None):
+                 batch_size=64, noise_start=0.1, noise_min=0.06, noise_schedule=10000,
+                 min_experience=None):
 
         # Alguns hiperparametros
         self.discount = discount
@@ -26,7 +27,9 @@ class DDPGAgent:
         # Componentes no sentido de componentes/dimensao de um vetor
         # Exemplo:. [a, b, c] possui 3 componentes/dimensao
         self.action_components = action_components
-        self.noise = noise
+        self.noise = noise_start
+        self.noise_min = noise_min
+        self.noise_decay = -(noise_start - noise_min)/noise_schedule
 
         self.high = tf.constant(high, dtype=tf.float32)
         self.low = tf.constant(low, dtype=tf.float32)
@@ -116,6 +119,9 @@ class DDPGAgent:
             # Assim conseguimos balancear o exploration-exploitation
             action += tf.random.normal(shape=[self.action_components], mean=0.0,
                                        stddev=self.noise)
+            self.noise = self.noise - self.noise_decay
+            if self.noise < self.noise_min:
+                self.noise = self.noise
 
         # max_action = self.high - current_position
         # min_action = self.low - current_position
