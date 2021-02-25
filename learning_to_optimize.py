@@ -80,7 +80,7 @@ def optimize(f, optimizer, f_name=None, training=True, render=False,
                 optimizer.learn()
 
             if render:
-                loss2d = f(tf.Variable([position[0], position[1]]))
+                loss2d = f(tf.convert_to_tensor([position[0], position[1]], dtype=tf.float32))
                 drawer.ax.scatter(position[0], position[1], loss2d, color='r')
                 drawer.draw()
 
