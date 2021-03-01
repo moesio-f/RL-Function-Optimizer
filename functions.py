@@ -97,6 +97,18 @@ def sphere(x):
     return tf.reduce_sum(x * x)
 
 
+# D dimensões:
+def rotated_hyper_ellipsoid(x):
+    x = tf.cast(x, dtype=tf.float32)
+
+    if tf.is_tensor(x):
+        d = x.shape[0]
+    else:
+        d = len(x)
+
+    return tf.reduce_sum(tf.convert_to_tensor([tf.reduce_sum(x[0:(i+1)] ** 2) for i in range(d)], dtype=tf.float32))
+
+
 # === Funções Utilitárias ===
 # Recebe uma função como argumenta
 # Retorna o nome dessa função
@@ -138,3 +150,5 @@ def get_low_and_high(function):
         return -5.0, 10.0
     elif function is griewank:
         return -600.0, 600.0
+    elif function is rotated_hyper_ellipsoid:
+        return -65.536, 65.536
