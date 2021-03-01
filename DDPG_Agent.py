@@ -134,7 +134,7 @@ class DDPGAgent:
         target_critic_values = tf.squeeze(self.target_critic(new_observations, target_actions), axis=1)
         critic_value = tf.squeeze(self.critic(observations, actions), axis=1)
         target = tf.stop_gradient(rewards + self.discount * terminals * target_critic_values)
-        critic_loss = keras.losses.MSE(target, critic_value)
+        critic_loss = tf.reduce_sum(keras.losses.MSE(target, critic_value)) / self.batch_size
 
         return critic_loss
 
