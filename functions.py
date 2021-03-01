@@ -26,11 +26,23 @@ def griewank(x: tf.Tensor):
 # D dimensões - Múltiplos mínimos
 def rastrigin(x):
     if isinstance(x, tf.Tensor):
-        d = x.shape.as_list()[0]
+        d = x.shape[0]
     else:
         d = len(x)
     return 10 * d + tf.reduce_sum(x ** 2 - 10 * tf.cos(x * 2 * np.math.pi))
 
+
+def levy(x: tf.Tensor):
+    pi = np.math.pi
+    d = x.shape[0] -1
+    w = 1 + (x - 1)/4
+    
+    term1 = tf.sin(pi * w[0]) ** 2
+    term3 = (w[d]-1)**2 * (1 + tf.sin(2*pi*w[d])**2)
+
+    wi = w[0:d]
+    sum = tf.reduce_sum((wi -1)**2 * (1+ 10*tf.sin(pi*wi+1)**2))
+    return term1 + sum + term3
 
 # === Valley-shaped ===
 # D dimensões
@@ -110,27 +122,6 @@ def rotated_hyper_ellipsoid(x):
 
 
 # === Funções Utilitárias ===
-# Recebe uma função como argumenta
-# Retorna o nome dessa função
-def get_function_name(function):
-    if function is sphere:
-        return 'sphere'
-    elif function is ackley:
-        return 'ackley'
-    elif function is rastrigin:
-        return 'rastrigin'
-    elif function is rosenbrock:
-        return 'rosenbrock'
-    elif function is bohachevsky:
-        return 'bohachevsky'
-    elif function is sum_squares:
-        return 'sum_squares'
-    elif function is zakharov:
-        return 'zakharov'
-    elif function is griewank:
-        return 'griewank'
-
-
 # Recebe uma função como argumento
 # Retorna o 'limite inferior e superior' da função
 def get_low_and_high(function):
@@ -152,3 +143,5 @@ def get_low_and_high(function):
         return -600.0, 600.0
     elif function is rotated_hyper_ellipsoid:
         return -65.536, 65.536
+    elif function is levy:
+        return -10, 10

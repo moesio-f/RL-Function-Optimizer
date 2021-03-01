@@ -43,7 +43,7 @@ def has_stopped(position_hist):
     return dif < 0.0001
 
 
-def optimize(f, optimizer, f_name=None, training=True, render=False,
+def optimize(f, optimizer, training=True, render=False,
              BEST_SOLUTION=tf.float32.max,
              EPISODES=10, STEPS=50, LOW=-5.12, HIGH=5.12, DIMS=10):
     drawer = FunctionDrawer(f, HIGH)
@@ -94,7 +94,7 @@ def optimize(f, optimizer, f_name=None, training=True, render=False,
 
         rewards.append(episode_reward)
         if ep % 10 == 0:
-            print('function: %s episode: %d \n' % (f_name, ep),
+            print('function: %s episode: %d \n' % (f.__name__, ep),
                   '\tfinal objective value: %.2f\n' % loss,
                   '\tepisode reward: %.2f\n' % rewards[-1],
                   '\taverage reward (last 20 ep): %.2f\n\n' % np.mean(rewards[-20:]))
@@ -124,9 +124,7 @@ if __name__ == '__main__':
         function = sphere
         low, high = get_low_and_high(function)
         agent.set_low_and_high(low, high)
-        function_name = get_function_name(function)
-        best_solution = optimize(function, agent, f_name=function_name,
-                                 BEST_SOLUTION=best_solution,
+        best_solution = optimize(function, agent, BEST_SOLUTION=best_solution,
                                  EPISODES=episodes, STEPS=steps, LOW=low, HIGH=high, DIMS=dims)
         # Salvar o melhor fitness encontrado até o momento
         # Fitness x Iteração
