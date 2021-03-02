@@ -46,7 +46,7 @@ def has_stopped(position_hist):
 def optimize(f, optimizer, training=True, render=False,
              BEST_SOLUTION=tf.float32.max,
              EPISODES=10, STEPS=50, LOW=-5.12, HIGH=5.12, DIMS=10):
-    drawer = FunctionDrawer(f, HIGH)
+    drawer = FunctionDrawer(f, (LOW, HIGH))
     rewards = []
     for ep in range(EPISODES):
         if render:
