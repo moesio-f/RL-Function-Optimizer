@@ -18,7 +18,7 @@ def get_gradient(f, position):
         tape.watch(position)
         loss = f(position)
     grads = tape.gradient(loss, position)
-    loss = tf.reshape(loss, [1])
+    loss = tf.reshape(loss, [])
     return grads, loss
 
 
