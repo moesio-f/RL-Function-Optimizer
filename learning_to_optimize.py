@@ -1,12 +1,6 @@
-import matplotlib as mpl
-import tensorflow as tf
-import numpy as np
-from random import sample
-from collections import deque
-
-from functions import *
+from Functions_tensorflow import *
 from FunctionDrawer import FunctionDrawer
-from DDPG_Agent import DDPGAgent
+from DDPG.DDPG_Agent import DDPGAgent
 
 mpl.use('TkAgg')
 
