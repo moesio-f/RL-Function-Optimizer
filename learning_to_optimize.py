@@ -18,7 +18,7 @@ def get_gradient(f, position):
         tape.watch(position)
         loss = f(position)
     grads = tape.gradient(loss, position)
-    loss = tf.reshape(loss, [1])
+    loss = tf.reshape(loss, [])
     return grads, loss
 
 
@@ -46,7 +46,7 @@ def has_stopped(position_hist):
 def optimize(f, optimizer, training=True, render=False,
              BEST_SOLUTION=tf.float32.max,
              EPISODES=10, STEPS=50, LOW=-5.12, HIGH=5.12, DIMS=10):
-    drawer = FunctionDrawer(f, HIGH)
+    drawer = FunctionDrawer(f, (LOW, HIGH))
     rewards = []
     for ep in range(EPISODES):
         if render:
@@ -105,29 +105,24 @@ def optimize(f, optimizer, training=True, render=False,
 
 if __name__ == '__main__':
     # Número de episódios para cada função
-    episodes = 50
+    episodes = 2500
     # Quantidade de interações realizadas em cada episódio (2000)
     # OBS:. Durante treino podemos utilizar um número menor de steps
-    steps = 2000
+    steps = 500
     # Dimensões das funções: 30 **(Testar para maiores dimensões)
     dims = 30
     # num_gradients_history = 20 Por hora não vai ser utilizado.
-    # Quantidade total de treinos realizados em todas funções
-    total_training = 50
 
     agent = DDPGAgent((dims,), dims)
     best_solution = tf.float32.max
 
     # No caso de uma única função, o agente treina em (episodes*total_training) episódios
-    for training_step in range(total_training):
-        print('---current training: %d | best solution: %.2f---\n' % (training_step, best_solution))
-        function = sphere
-        low, high = get_low_and_high(function)
-        agent.set_low_and_high(low, high)
-        best_solution = optimize(function, agent, BEST_SOLUTION=best_solution,
-                                 EPISODES=episodes, STEPS=steps, LOW=low, HIGH=high, DIMS=dims)
-        # Salvar o melhor fitness encontrado até o momento
-        # Fitness x Iteração
+    function = ackley
+    low, high = get_low_and_high(function)
+    agent.set_low_and_high(low, high)
+    best_solution = optimize(function, agent,
+                             BEST_SOLUTION=best_solution,
+                             EPISODES=episodes, STEPS=steps, LOW=low, HIGH=high, DIMS=dims)
 
     agent.save_model(make_dir=True)
     print('\n--best solution found: %.2f--\n' % best_solution)
