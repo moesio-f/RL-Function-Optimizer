@@ -58,7 +58,7 @@ def zakharov(x):
     d = x.shape[0]
 
     sum1 = tf.reduce_sum(x * x, axis=0)
-    sum2 = tf.reduce_sum(x * tf.range(1, d, dtype=x.dtype)/2, axis=0)
+    sum2 = tf.reduce_sum(x * tf.range(1, (d + 1), dtype=x.dtype)/2, axis=0)
     return sum1 + sum2 ** 2 + sum2 ** 4
 
 
