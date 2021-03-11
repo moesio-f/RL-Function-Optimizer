@@ -3,30 +3,33 @@ import numpy as np
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
-from collections import namedtuple
-
-hypercube = namedtuple('hypercube', ['min', 'max'])
+from functions.function import Function
 
 
-class FunctionEnv(py_environment.PyEnvironment):
-    def __init__(self, function, domain: hypercube, dims) -> None:
+class PyFunctionEnvironment(py_environment.PyEnvironment):
+    def __init__(self, function: Function, dims) -> None:
         super().__init__()
         self._function = function
-        self._domain = domain
+        self._domain = function.domain
         self._dims = dims
+
         self._best_solution = np.finfo(np.float32).max
+
         self._episode_ended = False
         self._steps_taken = 0
-        self._state = np.random.uniform(size=(dims,), low=domain.min, high=domain.max) \
+
+        self._state = np.random.uniform(size=(dims,), low=self._domain.min, high=self._domain.max) \
             .astype(dtype=np.float32, copy=False)
 
-        self._action_spec = array_spec.BoundedArraySpec(
-            shape=(dims,), dtype=np.float32,
-            minimum=-1.0, maximum=1.0, name='action')
+        self._action_spec = array_spec.BoundedArraySpec(shape=(dims,), dtype=np.float32,
+                                                        minimum=-1.0,
+                                                        maximum=1.0,
+                                                        name='action')
 
-        self._observation_spec = array_spec.BoundedArraySpec(
-            shape=(dims,), dtype=np.float32,
-            minimum=domain.min, maximum=domain.max, name='observation')
+        self._observation_spec = array_spec.BoundedArraySpec(shape=(dims,), dtype=np.float32,
+                                                             minimum=self._domain.min,
+                                                             maximum=self._domain.max,
+                                                             name='observation')
 
     def action_spec(self):
         return self._action_spec
@@ -55,7 +58,7 @@ class FunctionEnv(py_environment.PyEnvironment):
         self._state = np.clip(self._state, a_min=self._domain.min, a_max=self._domain.max)
 
         self._steps_taken += 1
-        if self._steps_taken > 2000:
+        if self._steps_taken > 5000:
             self._episode_ended = True
 
         reward = -self._function(self._state)

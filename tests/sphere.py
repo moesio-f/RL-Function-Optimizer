@@ -1,21 +1,18 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-
-
-# loss function
-def sphere(vector):
-    return tf.reduce_sum(vector ** 2)
+from functions.tensorflow_functions import Sphere
 
 
 def sphereMesh():
-    x_space = np.linspace(-5.12, 5.12, 30)
-    y_space = np.linspace(-5.12, 5.12, 30)
+    x_space = np.linspace(sphere.domain.min, sphere.domain.max, 30)
+    y_space = np.linspace(sphere.domain.min, sphere.domain.max, 30)
     X, Y = np.lib.meshgrid(x_space, y_space)
     Z = X ** 2 + Y ** 2
     return X, Y, Z
 
 
+sphere = Sphere()
 ITERATIONS = 100
 DIMENTION = 1000
 learning_rate = 0.1
@@ -27,7 +24,7 @@ X, Y, Z = sphereMesh()
 ax.plot_surface(X, Y, Z, alpha=0.5, cmap='viridis')
 
 # algoritmo de otimização
-agent = tf.random.uniform(minval=-5.12, maxval=5.12, shape=(DIMENTION,))
+agent = tf.random.uniform(minval=sphere.domain.min, maxval=sphere.domain.max, shape=(DIMENTION,))
 done = False
 while not done:
     with tf.GradientTape() as tape:

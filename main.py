@@ -1,5 +1,5 @@
-from Functions_numpy import *
-from FunctionEnv import *
+from functions.numpy_functions import *
+from environments.py_function_environment import *
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tf_agents.environments.wrappers import TimeLimit
@@ -9,13 +9,12 @@ from tf_agents.policies.policy_saver import PolicySaver
 from tf_agents.agents.ddpg.actor_network import ActorNetwork
 from tf_agents.agents.ddpg.critic_network import CriticNetwork
 from tf_agents.drivers import dynamic_step_driver
-from tf_agents.policies.random_tf_policy import RandomTFPolicy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
 
 
 # Função para testar o agente treinado (Plota fitness x iteração)
-def evaluate_agent(eval_env, policy_eval, function, dims):
+def evaluate_agent(eval_env, policy_eval, function: Function, dims):
     time_step = eval_env.reset()
 
     pos = time_step.observation.numpy()[0]
@@ -43,7 +42,7 @@ def evaluate_agent(eval_env, policy_eval, function, dims):
     fig, ax = plt.subplots()
     ax.plot(range(len(best_solution_at_it)), best_solution_at_it)
     ax.set(xlabel="Iteration", ylabel="Best objective value",
-           title="TD3 on {0} ({1} Dims)".format(function.__name__, dims))
+           title="TD3 on {0} ({1} Dims)".format(function.name, dims))
     ax.grid()
     plt.show()
     print('best_solution: ', best_solution)
@@ -83,10 +82,9 @@ joint_fc_layer_params = [300]  # FNN's depois de concatenar (observação, açã
 steps = 500  # @param {type:"integer"}
 steps_eval = 2000  # @param {type:"integer"}
 dims = 2  # @param {type:"integer"}
-function = ackley
-low, high = get_low_and_high(function)
+function = Ackley()
 
-env = FunctionEnv(function=function, domain=hypercube(min=low, max=high), dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
