@@ -502,7 +502,7 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
             dq_da = inner_tape.gradient(q_values, actions)
             mul_consts = tf.where(tf.math.greater(dq_da, tf.constant([0.], dtype=tf.float32)),
                                   actions_upper_bounds - actions, actions - actions_lower_bounds)
-            mul_consts = mul_consts / actions_bounds_delta
+            mul_consts = tf.divide(mul_consts, actions_bounds_delta)
             adjusted_dq_da = dq_da * mul_consts
             da_dmu = outer_tape.gradient(actions, trainable_actor_variables, output_gradients=-adjusted_dq_da)
             da_dmu = [grad / batch_size for grad in da_dmu]
