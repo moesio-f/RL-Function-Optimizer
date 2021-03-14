@@ -81,7 +81,7 @@ class Rosenbrock(Function):
     def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x: np.ndarray, *args, **kwargs):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -98,7 +98,7 @@ class Zakharov(Function):
     def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x: np.ndarray, *args, **kwargs):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -109,11 +109,30 @@ class Zakharov(Function):
         return sum1 + sum2 ** 2 + sum2 ** 4
 
 
+class PowerSum(Function):
+    def __init__(self, domain: Domain = Domain(min=0.0, max=5.0), b=np.array([8, 18, 44, 114], dtype=np.float32)):
+        super().__init__(domain)
+        self._b = b
+
+    def __call__(self, x: np.ndarray, *args, **kwargs):
+        if x.dtype != np.float32:
+            x = x.astype(np.float32, casting='same_kind')
+
+        d = x.shape[0]
+        bd = self.b.shape[0]
+
+        return np.sum(np.power([np.sum(np.power(x, (i + 1))) - self.b[i % bd] for i in range(d)], 2.0), dtype=np.float32, axis=0)
+
+    @property
+    def b(self):
+        return self._b
+
+
 class Bohachevsky(Function):
     def __init__(self, domain: Domain = Domain(min=-100.0, max=100.0)):
         super().__init__(domain)
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x: np.ndarray, *args, **kwargs):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -127,7 +146,7 @@ class SumSquares(Function):
     def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x: np.ndarray, *args, **kwargs):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -140,7 +159,7 @@ class Sphere(Function):
     def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
         super().__init__(domain)
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x: np.ndarray, *args, **kwargs):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -151,7 +170,7 @@ class RotatedHyperEllipsoid(Function):
     def __init__(self, domain: Domain = Domain(min=-65.536, max=65.536)):
         super().__init__(domain)
 
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x: np.ndarray, *args, **kwargs):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -162,4 +181,4 @@ class RotatedHyperEllipsoid(Function):
 
 def list_all_functions() -> [Function]:
     return [Ackley(), Griewank(), Rastrigin(), Levy(), Rosenbrock(), Zakharov(),
-            Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid()]
+            PowerSum(), Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid()]
