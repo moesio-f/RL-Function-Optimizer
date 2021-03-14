@@ -40,7 +40,7 @@ class Griewank(Function):
             x = tf.cast(x, dtype=tf.float32)
 
         griewank_sum = tf.reduce_sum(x ** 2, axis=0) / 4000.0
-        den = tf.range(1, x.shape[0], dtype=x.dtype)
+        den = tf.range(1, x.shape[0] + 1, dtype=x.dtype)
         prod = tf.cos(x / tf.sqrt(den))
         prod = tf.reduce_prod(prod, axis=0)
         return griewank_sum - prod + 1
@@ -123,7 +123,7 @@ class PowerSum(Function):
         bd = self.b.shape[0]
 
         return tf.reduce_sum(tf.pow(tf.convert_to_tensor([tf.reduce_sum(tf.pow(x, (i + 1))) - self.b[i % bd]
-                                                          for i in range(d)]), tf.constant(2.0)), axis=0)
+                                                          for i in range(d)], dtype=tf.float32), tf.constant(2.0)), axis=0)
 
     @property
     def b(self):

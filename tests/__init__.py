@@ -1,1 +1,1 @@
-__all__ = ["sphere_test", "function_environment_test"]
+__all__ = ["sphere_test", "function_environment_test", "functions_test"]
