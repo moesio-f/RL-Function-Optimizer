@@ -209,7 +209,7 @@ iterator = iter(dataset)
 # agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
-"""for ep in range(num_episodes):
+for ep in range(num_episodes):
     done = False
     best_solution = tf.float32.max
     ep_rew = 0.0
@@ -226,7 +226,7 @@ agent.train_step_counter.assign(0)
         ep_rew += -obj_value
         done = time_step.is_last()
 
-    print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))"""
+    print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
 """Realizando os testes do agente depois que sendo chamado"""
 
