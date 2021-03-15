@@ -39,12 +39,26 @@ def evaluate_agent(eval_env, policy_eval, function: Function, dims):
 
         best_solution_at_it.append(best_solution)
 
-    fig, ax = plt.subplots()
-    ax.plot(range(len(best_solution_at_it)), best_solution_at_it)
-    ax.set(xlabel="Iteration", ylabel="Best objective value",
-           title="TD3 on {0} ({1} Dims)".format(function.name, dims))
+    fig, ax = plt.subplots(figsize=(25.0, 8.0,))
+    ax.plot(range(len(best_solution_at_it)), best_solution_at_it,
+            label='Best value found: {:.2f}'.format(best_solution))
+    ax.set(xlabel="Iterations\nBest solution at: {0}".format(pos),
+           ylabel="Best objective value",
+           title="TD3-Inverting-Gradients on {0} ({1} Dims)".format(function.name, dims))
+
+    x_ticks = np.arange(0, len(best_solution_at_it), step=50.0)
+    x_labels = ['{:.0f}'.format(val) for val in x_ticks]
+
+    ax.set_xticks(x_ticks)
+    ax.set_xticklabels(x_labels)
+
+    ax.legend()
     ax.grid()
+
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+    plt.savefig(fname='{0}-{1}dims-{2}.png'.format(function.name, dims, policy_eval.name))
     plt.show()
+
     print('best_solution: ', best_solution)
     print('found at it: ', best_it)
     print('at position: ', pos)
