@@ -192,9 +192,9 @@ for ep in range(num_episodes):
 
 """Realizando os testes do agente depois que sendo chamado"""
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims, save_to_file=True)
+evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='TD3-IG', save_to_file=True)
 
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, save_to_file=True)
+evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, name_algorithm='TD3-IG', save_to_file=True)
 
 """Salvando ambas policies e agente"""
 

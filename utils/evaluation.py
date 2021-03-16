@@ -5,7 +5,8 @@ from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.environments.tf_environment import TFEnvironment
 
 
-def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Function, dims,
+def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Function,
+                   dims, name_algorithm,
                    save_to_file=False, verbose=False):
     time_step = eval_env.reset()
 
@@ -35,9 +36,10 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
             label='Best value found: {0}'.format(best_solution))
     ax.set(xlabel="Iterations\nBest solution at: {0}".format(pos),
            ylabel="Best objective value",
-           title="TD3-Inverting-Gradients on {0} ({1} Dims) [{2}]".format(function.name,
-                                                                          dims,
-                                                                          policy_eval.__class__.__name__))
+           title="{0} on {1} ({2} Dims) [{3}]".format(name_algorithm,
+                                                      function.name,
+                                                      dims,
+                                                      policy_eval.__class__.__name__))
 
     x_ticks = np.arange(0, len(best_solution_at_it), step=50.0)
     x_labels = ['{:.0f}'.format(val) for val in x_ticks]

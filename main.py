@@ -148,8 +148,8 @@ for ep in range(num_episodes):
 
     print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims, save_to_file=True)
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, save_to_file=True)
+evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='TD3', save_to_file=True)
+evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, name_algorithm='TD3', save_to_file=True)
 
 tf_policy_saver = PolicySaver(agent.policy)
 tf_policy_collect_saver = PolicySaver(agent.collect_policy)
