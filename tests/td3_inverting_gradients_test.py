@@ -39,7 +39,7 @@ from utils.evaluation import evaluate_agent
 """Hiperparâmetros"""
 
 # Hiperparametros de treino
-num_episodes = 1800  # @param {type:"integer"}
+num_episodes = 50  # @param {type:"integer"}
 initial_collect_episodes = 1  # @param {type:"integer"}
 collect_steps_per_iteration = 1  # @param {type:"integer"}
 

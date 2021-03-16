@@ -52,6 +52,7 @@ from tf_agents.utils import nest_utils
 from tf_agents.utils import object_identity
 
 from functions.function import Domain
+from policies.gaussian_scale_decay_policy import GaussianLinearScaleDecayPolicy
 
 
 class Td3Info(collections.namedtuple('Td3Info', ('actor_loss', 'critic_loss'))):
@@ -70,6 +71,8 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
                  actor_optimizer: types.Optimizer,
                  critic_optimizer: types.Optimizer,
                  exploration_noise_std: types.Float = 0.1,
+                 exploration_noise_std_end: Optional[types.Float] = None,
+                 exploration_noise_num_steps: Optional[types.Int] = None,
                  critic_network_2: Optional[network.Network] = None,
                  target_actor_network: Optional[network.Network] = None,
                  target_critic_network: Optional[network.Network] = None,
@@ -157,8 +160,8 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
                                                          target_critic_network,
                                                          'TargetCriticNetwork1'))
 
-        self._high = tf.constant(self._critic_network_1.input_tensor_spec[0].maximum, dtype=tf.float32)
-        self._low = tf.constant(self._critic_network_1.input_tensor_spec[0].minimum, dtype=tf.float32)
+        self._high_obs = tf.constant(self._critic_network_1.input_tensor_spec[0].maximum, dtype=tf.float32)
+        self._low_obs = tf.constant(self._critic_network_1.input_tensor_spec[0].minimum, dtype=tf.float32)
 
         if critic_network_2 is not None:
             self._critic_network_2 = critic_network_2
@@ -178,6 +181,9 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
         self._critic_optimizer = critic_optimizer
 
         self._exploration_noise_std = exploration_noise_std
+        self._exploration_noise_std_end = exploration_noise_std_end
+        self._exploration_noise_num_steps = exploration_noise_num_steps
+
         self._target_update_tau = target_update_tau
         self._target_update_period = target_update_period
         self._actor_update_period = actor_update_period
@@ -198,10 +204,18 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
         collect_policy = actor_policy.ActorPolicy(
             time_step_spec=time_step_spec, action_spec=action_spec,
             actor_network=self._actor_network, clip=False)
-        collect_policy = gaussian_policy.GaussianPolicy(
-            collect_policy,
-            scale=self._exploration_noise_std,
-            clip=True)
+
+        if self._exploration_noise_num_steps is None or self._exploration_noise_std_end is None:
+            collect_policy = gaussian_policy.GaussianPolicy(
+                collect_policy,
+                scale=self._exploration_noise_std,
+                clip=True)
+        else:
+            collect_policy = GaussianLinearScaleDecayPolicy(collect_policy,
+                                                            self._exploration_noise_std,
+                                                            self._exploration_noise_std_end,
+                                                            self._exploration_noise_num_steps,
+                                                            clip=True)
 
         train_sequence_length = 2 if not self._actor_network.state_spec else None
         super(Td3AgentInvertingGradients, self).__init__(
@@ -481,8 +495,8 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
 
     def actor_grads(self, time_steps: ts.TimeStep,
                     training: bool = False):
-        actions_upper_bounds = self._high - time_steps.observation
-        actions_lower_bounds = self._low - time_steps.observation
+        actions_upper_bounds = self._high_obs - time_steps.observation
+        actions_lower_bounds = self._low_obs - time_steps.observation
         actions_bounds_delta = actions_upper_bounds - actions_lower_bounds
         batch_size = tf.constant(time_steps.observation.shape[0], dtype=tf.float32)
 
