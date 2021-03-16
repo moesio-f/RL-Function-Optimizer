@@ -1,8 +1,5 @@
 from functions.numpy_functions import *
 from environments.py_function_environment import *
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
-from agents.td3_inverting_gradients import Td3AgentInvertingGradients
-from networks.custom_actor_network import CustomActorNetwork
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tf_agents.environments.wrappers import TimeLimit
@@ -69,12 +66,12 @@ def evaluate_agent(eval_env, policy_eval, function: Function, dims):
 
 # Hiperparametros de treino
 num_episodes = 800  # @param {type:"integer"}
-initial_collect_episodes = 2  # @param {type:"integer"}
+initial_collect_episodes = 10  # @param {type:"integer"}
 collect_steps_per_iteration = 1  # @param {type:"integer"}
 
 # Hiperparametros da memória de replay
 buffer_size = 1000000  # @param {type:"integer"}
-batch_size = 4  # @param {type:"number"}
+batch_size = 64  # @param {type:"number"}
 
 # Hiperparametros do Agente
 actor_lr = 1e-4  # @param {type:"number"}
@@ -99,9 +96,9 @@ joint_fc_layer_params = [300]  # FNN's depois de concatenar (observação, açã
 steps = 500  # @param {type:"integer"}
 steps_eval = 2000  # @param {type:"integer"}
 dims = 2  # @param {type:"integer"}
-function = Sphere()
+function = Ackley()
 
-env = PyFunctionEnvironmentUnbounded(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
@@ -113,11 +110,10 @@ act_spec = tf_env_training.action_spec()
 time_spec = tf_env_training.time_step_spec()
 
 # Creating networks
-actor_network = CustomActorNetwork(input_tensor_spec=obs_spec,
-                                   output_tensor_spec=act_spec,
-                                   fc_layer_params=fc_layer_params,
-                                   activation_action_fn=tf.keras.activations.linear,
-                                   activation_fn=tf.keras.activations.relu)
+actor_network = ActorNetwork(input_tensor_spec=obs_spec,
+                             output_tensor_spec=act_spec,
+                             fc_layer_params=fc_layer_params,
+                             activation_fn=tf.keras.activations.relu)
 critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
                                observation_fc_layer_params=observation_fc_layer_params,
                                joint_fc_layer_params=joint_fc_layer_params,
@@ -128,7 +124,7 @@ critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
 actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
 critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
 
-agent = Td3AgentInvertingGradients(
+agent = Td3Agent(
     time_step_spec=time_spec,
     action_spec=act_spec,
     actor_network=actor_network,
@@ -157,14 +153,14 @@ driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
                                                policy=agent.collect_policy,
                                                observers=[replay_buffer.add_batch],
                                                num_steps=collect_steps_per_iteration)
-# driver.run = common.function(driver.run)
+driver.run = common.function(driver.run)
 
 initial_collect_driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
                                                                policy=agent.collect_policy,
                                                                observers=[replay_buffer.add_batch],
                                                                num_steps=collect_steps_per_iteration)
 
-# initial_collect_driver.run = common.function(initial_collect_driver.run)
+initial_collect_driver.run = common.function(initial_collect_driver.run)
 
 for _ in range(initial_collect_episodes):
     done = False
@@ -180,7 +176,7 @@ dataset = replay_buffer.as_dataset(
 iterator = iter(dataset)
 
 # Training
-# agent.train = common.function(agent.train)
+agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
