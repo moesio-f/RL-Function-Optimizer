@@ -28,7 +28,6 @@ import tensorflow as tf  # pylint: disable=g-explicit-tensorflow-version-import
 
 from tf_agents.networks import network
 from tf_agents.networks import utils
-from tf_agents.utils import common
 
 
 @gin.configurable
@@ -126,7 +125,8 @@ class CustomActorNetwork(network.Network):
         for layer in self._mlp_layers:
             output = layer(output, training=training)
 
-        actions = common.scale_to_spec(output, self._single_action_spec)
+        actions = tf.cast(tf.reshape(output, [-1] + self._single_action_spec.shape.as_list()),
+                          self._single_action_spec.dtype)
         output_actions = tf.nest.pack_sequence_as(self._output_tensor_spec,
                                                   [actions])
 

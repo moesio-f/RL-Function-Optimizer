@@ -484,7 +484,7 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
         actions_upper_bounds = self._high - time_steps.observation
         actions_lower_bounds = self._low - time_steps.observation
         actions_bounds_delta = actions_upper_bounds - actions_lower_bounds
-        batch_size = time_steps.observation.shape[0]
+        batch_size = tf.constant(time_steps.observation.shape[0], dtype=tf.float32)
 
         trainable_actor_variables = self._actor_network.trainable_variables
         with tf.GradientTape(watch_accessed_variables=False) as outer_tape:
@@ -499,13 +499,13 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
                 q_values, _ = self._critic_network_1((time_steps.observation, actions),
                                                      time_steps.step_type,
                                                      training=False)
-            dq_da = -inner_tape.gradient(q_values, actions)
-            mul_consts = tf.where(tf.math.less(dq_da, tf.constant([0.], dtype=tf.float32)),
+            dq_da = inner_tape.gradient(q_values, actions)
+            mul_consts = tf.where(tf.math.greater(dq_da, tf.constant([0.], dtype=tf.float32)),
                                   actions_upper_bounds - actions, actions - actions_lower_bounds)
-            mul_consts = mul_consts / actions_bounds_delta
-            adjusted_dq_da = dq_da * mul_consts
+            mul_consts = tf.divide(mul_consts, actions_bounds_delta)
+            adjusted_dq_da = tf.math.multiply(dq_da, mul_consts)
             da_dmu = outer_tape.gradient(actions, trainable_actor_variables, output_gradients=adjusted_dq_da)
-            da_dmu = [grad / batch_size for grad in da_dmu]
+            da_dmu = [tf.math.divide(tf.math.negative(grad), batch_size) for grad in da_dmu]
 
         return da_dmu
 
