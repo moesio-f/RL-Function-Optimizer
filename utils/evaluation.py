@@ -6,8 +6,11 @@ from tf_agents.environments.tf_environment import TFEnvironment
 
 
 def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Function,
-                   dims, name_algorithm,
+                   dims, name_algorithm, name_policy=None,
                    save_to_file=False, verbose=False):
+    if name_policy is None:
+        name_policy = policy_eval.__class__.__name__
+
     time_step = eval_env.reset()
 
     pos = time_step.observation.numpy()[0]
@@ -39,14 +42,15 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
            title="{0} on {1} ({2} Dims) [{3}]".format(name_algorithm,
                                                       function.name,
                                                       dims,
-                                                      policy_eval.__class__.__name__))
+                                                      name_policy))
 
     x_ticks = np.arange(0, len(best_solution_at_it), step=50.0)
     x_labels = ['{:.0f}'.format(val) for val in x_ticks]
 
     ax.set_xticks(x_ticks)
     ax.set_xticklabels(x_labels)
-    ax.set_xscale('log', base=2)
+    ax.set_xscale('symlog', base=2)
+    ax.set_xlim(left=0)
 
     ax.legend()
     ax.grid()
@@ -55,7 +59,7 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
     if save_to_file:
         plt.savefig(fname='{0}-{1}dims-{2}.png'.format(function.name,
                                                        dims,
-                                                       policy_eval.__class__.__name__),
+                                                       name_policy),
                     bbox_inches='tight')
     plt.show()
 
