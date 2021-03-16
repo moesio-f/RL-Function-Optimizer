@@ -17,64 +17,10 @@ sys.path.append('/content/RL-Function-Optimizer/')
 from functions.numpy_functions import *
 from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
 
-"""Função para testar o agente treinado (Plota fitness x iteração)"""
-
-import matplotlib.pyplot as plt
-
-
-def evaluate_agent(eval_env, policy_eval, function: Function, dims):
-    time_step = eval_env.reset()
-
-    pos = time_step.observation.numpy()[0]
-    best_solution = function(pos)
-
-    best_solution_at_it = []
-    best_solution_at_it.append(best_solution)
-    best_it = 0
-    it = 0
-
-    while not time_step.is_last():
-        it += 1
-        action_step = policy_eval.action(time_step)
-        time_step = eval_env.step(action_step.action)
-
-        obj_value = -time_step.reward.numpy()[0]
-
-        if obj_value < best_solution:
-            best_solution = obj_value
-            pos = time_step.observation.numpy()[0]
-            best_it = it
-
-        best_solution_at_it.append(best_solution)
-
-    fig, ax = plt.subplots(figsize=(25.0, 8.0,))
-    ax.plot(range(len(best_solution_at_it)), best_solution_at_it,
-            label='Best value found: {:.2f}'.format(best_solution))
-    ax.set(xlabel="Iterations\nBest solution at: {0}".format(pos),
-           ylabel="Best objective value",
-           title="TD3-Inverting-Gradients on {0} ({1} Dims)".format(function.name, dims))
-
-    x_ticks = np.arange(0, len(best_solution_at_it), step=50.0)
-    x_labels = ['{:.0f}'.format(val) for val in x_ticks]
-
-    ax.set_xticks(x_ticks)
-    ax.set_xticklabels(x_labels)
-
-    ax.legend()
-    ax.grid()
-
-    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-    plt.savefig(fname='{0}-{1}dims-{2}.png'.format(function.name, dims, policy_eval.name))
-    plt.show()
-
-    print('best_solution: ', best_solution)
-    print('found at it: ', best_it)
-    print('at position: ', pos)
-
-
 """Imports para Main (Agente, Redes, etc)"""
 
 import tensorflow as tf
+
 from tf_agents.environments.wrappers import TimeLimit
 from tf_agents.environments import tf_py_environment
 from tf_agents.agents import Td3Agent
@@ -84,9 +30,11 @@ from tf_agents.drivers import dynamic_step_driver
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.utils import common
+
 from environments.py_env_wrappers import RewardClip
 from networks.custom_actor_network import CustomActorNetwork
 from agents.td3_inverting_gradients import Td3AgentInvertingGradients
+from utils.evaluation import evaluate_agent
 
 """Hiperparâmetros"""
 
@@ -244,16 +192,16 @@ for ep in range(num_episodes):
 
 """Realizando os testes do agente depois que sendo chamado"""
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims)
+evaluate_agent(tf_env_eval, agent.policy, function, dims, save_to_file=True)
 
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims)
+evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, save_to_file=True)
 
 """Salvando ambas policies e agente"""
 
-"""from tf_agents.policies.policy_saver import PolicySaver
+from tf_agents.policies.policy_saver import PolicySaver
 
 tf_policy_saver = PolicySaver(agent.policy)
 tf_policy_collect_saver = PolicySaver(agent.collect_policy)
 
 tf_policy_saver.save('policy')
-tf_policy_collect_saver.save('policy_collect')"""
+tf_policy_collect_saver.save('policy_collect')
