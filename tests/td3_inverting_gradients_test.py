@@ -117,6 +117,8 @@ agent = Td3AgentInvertingGradients(
     critic_optimizer=critic_optimizer,
     target_update_tau=tau,
     exploration_noise_std=exploration_noise_std,
+    exploration_noise_std_end=0.08,
+    exploration_noise_num_steps=50,
     target_policy_noise=target_policy_noise,
     target_policy_noise_clip=target_policy_noise_clip,
     actor_update_period=actor_update_period,
@@ -141,14 +143,14 @@ driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
                                                policy=agent.collect_policy,
                                                observers=[replay_buffer.add_batch],
                                                num_steps=collect_steps_per_iteration)
-# driver.run = common.function(driver.run)
+driver.run = common.function(driver.run)
 
 initial_collect_driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
                                                                policy=agent.collect_policy,
                                                                observers=[replay_buffer.add_batch],
                                                                num_steps=collect_steps_per_iteration)
 
-# initial_collect_driver.run = common.function(initial_collect_driver.run)
+initial_collect_driver.run = common.function(initial_collect_driver.run)
 
 for _ in range(initial_collect_episodes):
     done = False
