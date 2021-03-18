@@ -86,13 +86,10 @@ class Rosenbrock(Function):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
-        rosen_sum = 0.0
         d = x.shape[0]
-
-        for i in range(d - 1):
-            rosen_sum += 100 * (x[i + 1] - x[i] ** 2) ** 2 + (x[i] - 1.0) ** 2
-
-        return rosen_sum
+        xi = x[:-1]
+        xnext = x[1:]
+        return tf.reduce_sum( 100 * (xnext - xi**2)**2 + (xi - 1)**2 , axis=0)
 
 
 class Zakharov(Function):
