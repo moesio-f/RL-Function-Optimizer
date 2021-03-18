@@ -10,7 +10,7 @@ class Ackley(Function):
         self._b = b
         self._c = c
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -35,7 +35,7 @@ class Griewank(Function):
     def __init__(self, domain: Domain = Domain(min=-600.0, max=600.0)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -50,7 +50,7 @@ class Rastrigin(Function):
     def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -62,7 +62,7 @@ class Levy(Function):
     def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -82,7 +82,7 @@ class Rosenbrock(Function):
     def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -99,7 +99,7 @@ class Zakharov(Function):
     def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -115,7 +115,7 @@ class PowerSum(Function):
         super().__init__(domain)
         self._b = b
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -134,7 +134,7 @@ class Bohachevsky(Function):
     def __init__(self, domain: Domain = Domain(min=-100.0, max=100.0)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -148,7 +148,7 @@ class SumSquares(Function):
     def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -160,7 +160,7 @@ class Sphere(Function):
     def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -171,7 +171,7 @@ class RotatedHyperEllipsoid(Function):
     def __init__(self, domain: Domain = Domain(min=-65.536, max=65.536)):
         super().__init__(domain)
 
-    def __call__(self, x: tf.Tensor, *args, **kwargs):
+    def __call__(self, x: tf.Tensor):
         if x.dtype != tf.float32:
             x = tf.cast(x, dtype=tf.float32)
 
@@ -181,7 +181,28 @@ class RotatedHyperEllipsoid(Function):
         return tf.reduce_sum(tf.convert_to_tensor([tf.reduce_sum(x[0:(i + 1)] ** 2, axis=0) for i in range(d)],
                                                   dtype=tf.float32), axis=0)
 
+class DixonPrice(Function):
+    def __init__(self, domain: Domain = Domain(-10, 10)):
+        super().__init__(domain)
+    
+    def __call__(self, x: tf.Tensor):
+        x0 = x[0]
+        d = x.shape[0]
+        term1 = (x0 - 1)**2
+        ii = tf.range(2.0, d+1)
+        xi = x[1:]
+        xold = x[:-1]
+        sum = ii * (2*xi**2 - xold) ** 2
+        term2 = tf.reduce_sum(sum, axis=0)
+        return term1 + term2
+        """ 
+        sum1 = (x[0] - 1) ** 2
+        sum2 = 0
+        for i in range(1, x.shape[0]):
+            sum2 += i * (2 * x[i]**2 - x[i -1]) ** 2
+        return sum1 + sum2 """
+
 
 def list_all_functions() -> [Function]:
     return [Ackley(), Griewank(), Rastrigin(), Levy(), Rosenbrock(), Zakharov(),
-            PowerSum(), Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid()]
+            PowerSum(), Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid(), DixonPrice()]

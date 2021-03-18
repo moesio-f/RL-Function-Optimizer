@@ -9,7 +9,7 @@ class Ackley(Function):
         self._b = b
         self._c = c
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -34,7 +34,7 @@ class Griewank(Function):
     def __init__(self, domain: Domain = Domain(min=-600.0, max=600.0)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -49,7 +49,7 @@ class Rastrigin(Function):
     def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -61,7 +61,7 @@ class Levy(Function):
     def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -81,7 +81,7 @@ class Rosenbrock(Function):
     def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -98,7 +98,7 @@ class Zakharov(Function):
     def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -114,7 +114,7 @@ class PowerSum(Function):
         super().__init__(domain)
         self._b = b
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -132,7 +132,7 @@ class Bohachevsky(Function):
     def __init__(self, domain: Domain = Domain(min=-100.0, max=100.0)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -146,7 +146,7 @@ class SumSquares(Function):
     def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -159,7 +159,7 @@ class Sphere(Function):
     def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -170,7 +170,7 @@ class RotatedHyperEllipsoid(Function):
     def __init__(self, domain: Domain = Domain(min=-65.536, max=65.536)):
         super().__init__(domain)
 
-    def __call__(self, x: np.ndarray, *args, **kwargs):
+    def __call__(self, x: np.ndarray):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
@@ -178,7 +178,21 @@ class RotatedHyperEllipsoid(Function):
 
         return np.sum([np.sum(x[0:(i + 1)] ** 2, axis=0) for i in range(d)], dtype=np.float32, axis=0)
 
+class DixonPrice(Function):
+    def __init__(self, domain: Domain = Domain(-10, 10)):
+        super().__init__(domain)
+    
+    def __call__(self, x: np.ndarray):
+        x0 = x[0]
+        d = x.shape[0]
+        term1 = (x0 - 1)**2
+        ii = np.arange(2.0, d+1)
+        xi = x[1:]
+        xold = x[:-1]
+        sum = ii * (2*xi**2 - xold) ** 2
+        term2 = np.sum(sum, axis=0)
+        return term1 + term2
 
 def list_all_functions() -> [Function]:
     return [Ackley(), Griewank(), Rastrigin(), Levy(), Rosenbrock(), Zakharov(),
-            PowerSum(), Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid()]
+            PowerSum(), Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid(), DixonPrice()]

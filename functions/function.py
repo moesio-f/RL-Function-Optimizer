@@ -9,7 +9,7 @@ class Function(object):
         self._domain = domain
 
     @abc.abstractmethod
-    def __call__(self, x, *args, **kwargs):
+    def __call__(self, x):
         pass
 
     @property

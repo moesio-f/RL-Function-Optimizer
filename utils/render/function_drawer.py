@@ -38,7 +38,7 @@ class FunctionDrawer(object):
         X, Y = np.lib.meshgrid(x, y)
 
         zs = [np.ravel(X), np.ravel(Y)]
-        zs = tf.constant(zs)
+        zs = tf.convert_to_tensor(zs, dtype=tf.float32)
         zs = self.function(zs).numpy()
 
         Z = zs.reshape(X.shape)
