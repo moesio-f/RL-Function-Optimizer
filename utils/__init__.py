@@ -1,1 +1,1 @@
-__all__ = ["render", "evaluation"]
+__all__ = ["render", "evaluation", "debug"]
