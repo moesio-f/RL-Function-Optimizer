@@ -7,7 +7,7 @@ from environments.py_function_environment_unbounded import PyFunctionEnvironment
 from functions.numpy_functions import *
 from utils.evaluation import evaluate_agent
 
-ROOT_DIR = os.path.dirname(os.getcwd())
+ROOT_DIR = os.getcwd()
 
 policy_dir = os.path.join(ROOT_DIR, "policy")
 policy_collect_dir = os.path.join(ROOT_DIR, "policy_collect")
@@ -15,7 +15,7 @@ policy_collect_dir = os.path.join(ROOT_DIR, "policy_collect")
 saved_pol = tf.compat.v2.saved_model.load(policy_dir)
 saved_pol_col = tf.compat.v2.saved_model.load(policy_collect_dir)
 
-function = Ackley()
+function = Levy()
 dims = 20
 steps = 2000
 
@@ -27,8 +27,9 @@ tf_eval_env = TFPyEnvironment(environment=env)
 evaluate_agent(tf_eval_env, saved_pol, function, dims,
                name_policy='ActorPolicy',
                name_algorithm='TD3',
-               save_to_file=True)
+               save_to_file=True, episodes=10)
+
 evaluate_agent(tf_eval_env, saved_pol_col, function, dims,
                name_policy='GaussianPolicy',
                name_algorithm='TD3',
-               save_to_file=True)
+               save_to_file=True, episodes=10)
