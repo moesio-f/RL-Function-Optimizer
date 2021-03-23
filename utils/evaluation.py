@@ -3,40 +3,55 @@ import numpy as np
 from functions.function import Function
 from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.environments.tf_environment import TFEnvironment
+from utils.render.function_drawer import FunctionDrawer
 
 
 def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Function,
                    dims, name_algorithm, name_policy=None,
-                   save_to_file=False, verbose=False):
+                   save_to_file=False, verbose=False, episodes=50):
     if name_policy is None:
         name_policy = policy_eval.__class__.__name__
+    
+    trajectories = []
+    best_trajectory = [np.finfo(np.float32).max]
 
-    time_step = eval_env.reset()
+    for ep in range(episodes):
+        time_step = eval_env.reset()
 
-    pos = time_step.observation.numpy()[0]
-    best_solution = function(pos)
+        pos = time_step.observation.numpy()[0]
+        best_solution = function(pos)
 
-    best_solution_at_it = [best_solution]
-    best_it = 0
-    it = 0
+        trajectory = [best_solution]
+        best_it = 0
+        it = 0
 
-    while not time_step.is_last():
-        it += 1
-        action_step = policy_eval.action(time_step)
-        time_step = eval_env.step(action_step.action)
+        while not time_step.is_last():
+            it += 1
+            action_step = policy_eval.action(time_step)
+            time_step = eval_env.step(action_step.action)
 
-        obj_value = -time_step.reward.numpy()[0]
+            obj_value = -time_step.reward.numpy()[0]
 
-        if obj_value < best_solution:
-            best_solution = obj_value
-            pos = time_step.observation.numpy()[0]
-            best_it = it
+            if obj_value < best_solution:
+                best_solution = obj_value
+                pos = time_step.observation.numpy()[0]
+                best_it = it
 
-        best_solution_at_it.append(best_solution)
+            trajectory.append(best_solution)
+        
+        if trajectory[-1] < best_trajectory[-1]:
+            best_trajectory = trajectory
+
+        trajectories.append(trajectory)
+
+    mean = np.mean(trajectories, axis=0)
 
     fig, ax = plt.subplots(figsize=(18.0, 10.0,))
-    ax.plot(range(len(best_solution_at_it)), best_solution_at_it,
-            label='Best value found: {0}'.format(best_solution))
+    for traj in trajectories:
+        ax.plot(traj, '--c', alpha=0.4)
+    ax.plot(mean, 'r', label='Best mean value: {0}'.format(mean[-1]))
+    ax.plot(best_trajectory, 'g', label='Best value: {0}'.format(best_trajectory[-1]))
+
     ax.set(xlabel="Iterations\nBest solution at: {0}".format(pos),
            ylabel="Best objective value",
            title="{0} on {1} ({2} Dims) [{3}]".format(name_algorithm,
@@ -44,11 +59,6 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
                                                       dims,
                                                       name_policy))
 
-    x_ticks = np.arange(0, len(best_solution_at_it), step=50.0)
-    x_labels = ['{:.0f}'.format(val) for val in x_ticks]
-
-    ax.set_xticks(x_ticks)
-    ax.set_xticklabels(x_labels)
     ax.set_xscale('symlog', base=2)
     ax.set_xlim(left=0)
 
