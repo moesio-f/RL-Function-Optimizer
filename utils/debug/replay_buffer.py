@@ -38,7 +38,17 @@ class ReplayBufferState(object):
 
         for item in self._list_trajectories:
             observation = item[0].observation
-            if np.linalg.norm(value - observation) <= ref_l2_norm:
+            if np.linalg.norm(observation - value) <= ref_l2_norm:
+                num = num + 1
+
+        return num, 100 * (num / self._num_samples)
+
+    def num_rewards_close_to(self, value: np.ndarray, reward_scale_factor=1.0, ref_l2_norm=1.0):
+        num = 0
+
+        for item in self._list_trajectories:
+            reward = item[0].reward
+            if np.linalg.norm(reward_scale_factor * reward - value) <= ref_l2_norm:
                 num = num + 1
 
         return num, 100 * (num / self._num_samples)
