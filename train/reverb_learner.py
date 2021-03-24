@@ -91,7 +91,7 @@ class ReverbLearnerPER(Learner):
 
     def _get_is_weights(self, sample_info):
         probs = tf.reduce_mean(sample_info.probability, axis=1)
-        size = tf.math.rint(tf.reduce_mean(sample_info.table_size))
+        size = tf.reduce_mean(sample_info.table_size)
 
         weights = tf.math.pow(tf.multiply(size, probs), tf.math.negative(self._is_weight_exp))
         weights = tf.math.divide(weights, tf.reduce_max(weights))
