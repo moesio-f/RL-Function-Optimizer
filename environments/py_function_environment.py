@@ -14,13 +14,13 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         self._domain = function.domain
         self._dims = dims
 
-        self._best_solution = np.finfo(np.float32).max
-
         self._episode_ended = False
         self._steps_taken = 0
 
         self._state = np.random.uniform(size=(dims,), low=self._domain.min, high=self._domain.max) \
             .astype(dtype=np.float32, copy=False)
+
+        self._last_objective_value = self._function(self._state)
 
         self._action_spec = self._set_action_spec()
 
@@ -45,7 +45,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         return self._observation_spec
 
     def get_info(self):
-        return self._best_solution
+        return self._last_objective_value
 
     def get_state(self):
         state = (self._state, self._steps_taken, self._episode_ended)
@@ -65,12 +65,12 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         self._state = np.clip(self._state, a_min=self._domain.min, a_max=self._domain.max)
 
         self._steps_taken += 1
-        if self._steps_taken > 5000:
+        if self._steps_taken > 500000:
             self._episode_ended = True
 
-        reward = -self._function(self._state)
-        if reward < self._best_solution:
-            self._best_solution = reward
+        obj_value = self._function(self._state)
+        reward = -obj_value
+        self._last_objective_value = obj_value
 
         if self._episode_ended:
             return ts.termination(self._state, reward)
