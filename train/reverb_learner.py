@@ -56,7 +56,7 @@ class ReverbLearnerPER(Learner):
         def update_priorities(sample, loss):
             (experience, sample_info) = sample
             td_errors = loss.extra.td_error_per_element
-            priorities = tf.clip_by_value(tf.math.abs(td_errors), clip_value_min=0.001, clip_value_max=1.0)
+            priorities = tf.clip_by_value(tf.math.abs(td_errors), clip_value_min=0.05, clip_value_max=1.0)
             reverb_replay_buffer.update_priorities(sample_info.key[:, 0], tf.cast(priorities, dtype=tf.float64))
 
         update_priorities_fn = update_priorities
