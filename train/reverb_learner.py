@@ -57,7 +57,7 @@ class ReverbLearnerPER(Learner):
             (experience, sample_info) = sample
             td_errors = loss.extra.td_error_per_element
             priorities = tf.clip_by_value(tf.math.abs(td_errors), clip_value_min=0.001, clip_value_max=1.0)
-            reverb_replay_buffer.update_priorities(sample_info.key, tf.cast(priorities, dtype=tf.float64))
+            reverb_replay_buffer.update_priorities(sample_info.key[:, 0], tf.cast(priorities, dtype=tf.float64))
 
         update_priorities_fn = update_priorities
 
@@ -90,8 +90,8 @@ class ReverbLearnerPER(Learner):
         return loss_info
 
     def _get_is_weights(self, sample_info):
-        probs = tf.reduce_mean(tf.cast(sample_info.probability, dtype=tf.float32), axis=1)
-        size = tf.reduce_mean(tf.cast(sample_info.table_size, dtype=tf.float32))
+        probs = tf.cast(sample_info.probability[:, 0], dtype=tf.float32)
+        size = tf.cast(sample_info.table_size[:, 0], dtype=tf.float32)
 
         weights = tf.math.pow(tf.multiply(size, probs), tf.math.negative(self._is_weight_exp))
         weights = tf.math.divide(weights, tf.reduce_max(weights))
