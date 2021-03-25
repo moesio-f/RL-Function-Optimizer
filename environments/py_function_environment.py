@@ -1,10 +1,15 @@
 import numpy as np
+from collections import namedtuple
 
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.typing import types
 from tf_agents.trajectories import time_step as ts
 from functions.function import Function
+
+
+class FunctionEnvironmentInfo(namedtuple('FunctionEnvironmentInfo', ('position', 'objective_value'))):
+    pass
 
 
 class PyFunctionEnvironment(py_environment.PyEnvironment):
@@ -21,6 +26,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
             .astype(dtype=np.float32, copy=False)
 
         self._last_objective_value = self._function(self._state)
+        self._last_position = self._state
 
         self._action_spec = self._set_action_spec()
 
@@ -45,7 +51,8 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         return self._observation_spec
 
     def get_info(self):
-        return self._last_objective_value
+        return FunctionEnvironmentInfo(position=self._last_position,
+                                       objective_value=self._last_objective_value)
 
     def get_state(self):
         state = (self._state, self._steps_taken, self._episode_ended)
@@ -71,6 +78,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         obj_value = self._function(self._state)
         reward = -obj_value
         self._last_objective_value = obj_value
+        self._last_position = self._state
 
         if self._episode_ended:
             return ts.termination(self._state, reward)

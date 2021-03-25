@@ -175,19 +175,20 @@ agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
     done = False
-    best_solution = tf.float32.max
+    best_solution = np.finfo(np.float32).max
     ep_rew = 0.0
     while not done:
         time_step, _ = driver.run()
         experience, unused_info = next(iterator)
         agent.train(experience)
 
-        obj_value = -time_step.reward.numpy()[0]
+        # Acessando indíce 0 por conta da dimensão extra (batch)
+        obj_value = driver.env.get_info().objective_value[0]
 
         if obj_value < best_solution and not time_step.is_first():
             best_solution = obj_value
 
-        ep_rew += -obj_value
+        ep_rew += time_step.reward.numpy()[0]
         done = time_step.is_last()
 
     print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
