@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import default_rng
 from collections import namedtuple
 
 from tf_agents.environments import py_environment
@@ -15,6 +16,7 @@ class FunctionEnvironmentInfo(namedtuple('FunctionEnvironmentInfo', ('position',
 class PyFunctionEnvironment(py_environment.PyEnvironment):
     def __init__(self, function: Function, dims) -> None:
         super().__init__()
+        self._rng = default_rng()
         self._function = function
         self._domain = function.domain
         self._dims = dims
@@ -22,7 +24,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         self._episode_ended = False
         self._steps_taken = 0
 
-        self._state = np.random.uniform(size=(dims,), low=self._domain.min, high=self._domain.max) \
+        self._state = self._rng.uniform(size=(dims,), low=self._domain.min, high=self._domain.max) \
             .astype(dtype=np.float32, copy=False)
 
         self._last_objective_value = self._function(self._state)
@@ -86,7 +88,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
             return ts.transition(self._state, reward)
 
     def _reset(self):
-        self._state = np.random.uniform(size=(self._dims,), low=self._domain.min, high=self._domain.max) \
+        self._state = self._rng.uniform(size=(self._dims,), low=self._domain.min, high=self._domain.max) \
             .astype(dtype=np.float32, copy=False)
         self._episode_ended = False
         self._steps_taken = 0

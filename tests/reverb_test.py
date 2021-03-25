@@ -19,26 +19,21 @@ from tf_agents.agents.ddpg.critic_network import CriticNetwork
 from tf_agents.replay_buffers import reverb_replay_buffer
 from tf_agents.replay_buffers import reverb_utils
 
-from tf_agents.drivers import py_driver
-
 from tf_agents.environments.wrappers import TimeLimit
 
 from tf_agents.train.utils import spec_utils
 from tf_agents.train.utils import train_utils
 
 from tf_agents.policies import py_tf_eager_policy
-from tf_agents.policies import random_py_policy
 
 from tf_agents.train import actor
 from tf_agents.train import learner
 from tf_agents.train import triggers
 
-from tensorflow.keras.optimizers.schedules import PolynomialDecay
-
-from environments.py_env_wrappers import RewardClip
+from environments.py_env_wrappers import RewardClip, RewardScale
 from networks.custom_actor_network import CustomActorNetwork
-from agents.td3_inverting_gradients import Td3AgentInvertingGradients
-from utils.evaluation import evaluate_agent
+from agents.td3_ig_reverb_per import Td3AgentReverb
+from train.reverb_learner import ReverbLearnerPER
 
 tempdir = tempfile.gettempdir()
 
@@ -52,36 +47,38 @@ collect_steps_per_iteration = 1  # @param {type:"integer"}
 # Hiperparametros da memória de replay
 buffer_size = 10000000  # @param {type:"integer"}
 batch_size = 256  # @param {type:"number"}
+prioritization_exponent = 0.8  # @param {type:"number"}
+
+# Hiperparametros do learner
+is_weights_initial_exponent = 0.5  # @param {type:"number"}
+is_weights_final_exponent = 1.0  # @param {type:"number"}
 
 # Hiperparametros do Agente
-actor_lr_start = 5e-5  # @param {type:"number"}
-actor_lr_end = 1e-5  # @param {type:"number"}
-actor_decay_steps = 20000  # @param {type: "integer"}
-critic_lr_start = 8e-5  # @param {type:"number"}
-critic_lr_end = 2e-5  # @param {type:"number"}
-critic_decay_steps = 20000  # @param {type: "integer"}
+actor_lr = 1e-4  # @param {type:"number"}
+critic_lr = 2e-3  # @param {type:"number"}
 tau = 1e-4  # @param {type:"number"}
+actor_update_period = 2  # @param {type:"integer"}
+target_update_period = 2  # @param {type:"integer"}
+
 discount = 0.99  # @param {type:"number"}
-exploration_noise_std = 0.65  # @param {type:"number"}
+
+gradient_clipping_norm = 1.0  # @param {type:"number"}
+
+exploration_noise_std = 0.6  # @param {type:"number"}
 exploration_noise_std_end = 0.1  # @param {type: "number"}
-exploration_noise_num_steps = 200000  # @param {type: "integer"}
+exploration_noise_num_episodes = 700  # @param {type: "integer"}
 target_policy_noise = 0.2  # @param {type:"number"}
 target_policy_noise_clip = 0.5  # @param {type:"number"}
-actor_update_period = 3  # @param {type:"integer"}
-target_update_period = 2  # @param {type:"integer"}
-reward_scale_factor = 0.05  # @param {type:"number"}
-
-# --- Arquitetura da rede ---
-# Actor
-fc_layer_params = [400, 300]  # FNN's do Actor
-# Critic
-action_fc_layer_params = []  # FNN's apenas para ações
-observation_fc_layer_params = [400]  # FNN's apenas para observações
-joint_fc_layer_params = [300]  # FNN's depois de concatenar (observação, ação)
 
 policy_save_interval = 5000  # @param {type:"integer"}
 
-# Episodes 100 --> 500
+# Actor Network
+fc_layer_params = [400, 300]  # FNN's do Actor
+
+# Critic Network
+action_fc_layer_params = []  # FNN's apenas para ações
+observation_fc_layer_params = [400]  # FNN's apenas para observações
+joint_fc_layer_params = [300]  # FNN's depois de concatenar (observação, ação)
 
 """Criando o Env"""
 
@@ -89,14 +86,24 @@ policy_save_interval = 5000  # @param {type:"integer"}
 steps = 500  # @param {type:"integer"}
 steps_eval = 2000  # @param {type:"integer"}
 dims = 20  # @param {type:"integer"}
-function = Ackley()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+function = Sphere()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+min_reward = -500  # @param {type:"number"}
+max_reward = 500 # @param {type:"number"}
+reward_scale = 1e-2  # @param {type:"number"}
 
 env = PyFunctionEnvironmentUnbounded(function=function, dims=dims)
+env = RewardClip(env=env, min_reward=min_reward, max_reward=max_reward)
+env = RewardScale(env=env, scale_factor=reward_scale)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
 
 obs_spec, act_spec, time_spec = (spec_utils.get_tensor_specs(env_training))
+
+""" Atualizando alguns hiperparametros """
+
+exploration_noise_num_steps = round(exploration_noise_num_episodes * steps)
+is_weight_exponent_steps = round(0.85 * (num_episodes * steps))
 
 """Criando as redes"""
 
@@ -116,15 +123,12 @@ critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
 """Criando o agente"""
 
 # Creating agent
-actor_schedule = PolynomialDecay(actor_lr_start, actor_decay_steps, end_learning_rate=actor_lr_end)
-critic_schedule = PolynomialDecay(critic_lr_start, critic_decay_steps, end_learning_rate=critic_lr_end)
-
-actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_schedule)
-critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_schedule)
+actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
+critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
 
 train_step = train_utils.create_train_step()
 
-agent = Td3AgentInvertingGradients(
+agent = Td3AgentReverb(
     time_step_spec=time_spec,
     action_spec=act_spec,
     actor_network=actor_network,
@@ -139,9 +143,8 @@ agent = Td3AgentInvertingGradients(
     target_policy_noise_clip=target_policy_noise_clip,
     actor_update_period=actor_update_period,
     target_update_period=target_update_period,
-    reward_scale_factor=reward_scale_factor,
     train_step_counter=train_step,
-    gradient_clipping=1.0,
+    gradient_clipping=gradient_clipping_norm,
     gamma=discount)
 
 agent.initialize()
@@ -152,7 +155,7 @@ agent.initialize()
 table_name = 'per_table'
 reverb_table = reverb.Table(table_name,
                             max_size=buffer_size,
-                            sampler=reverb.selectors.Prioritized(0.8),
+                            sampler=reverb.selectors.Prioritized(prioritization_exponent),
                             remover=reverb.selectors.Fifo(),
                             rate_limiter=reverb.rate_limiters.MinSize(1))
 
@@ -202,11 +205,15 @@ learning_triggers = [
     triggers.PolicySavedModelTrigger(saved_model_dir, agent, train_step, interval=policy_save_interval),
     triggers.StepPerSecondLogTrigger(train_step, interval=1000), ]
 
-agent_learner = learner.Learner(tempdir,
-                                train_step,
-                                agent,
-                                experience_dataset_fn,
-                                triggers=learning_triggers)
+agent_learner = ReverbLearnerPER(tempdir,
+                                 train_step,
+                                 agent,
+                                 replay_buffer,
+                                 initial_is_weight_exp=is_weights_initial_exponent,
+                                 final_is_weight_exp=is_weights_final_exponent,
+                                 is_weight_exp_steps=is_weight_exponent_steps,
+                                 experience_dataset_fn=experience_dataset_fn,
+                                 triggers=learning_triggers)
 
 """Treinamento do Agente"""
 
@@ -222,12 +229,12 @@ for ep in range(num_episodes):
         agent_learner.run(iterations=1)
 
         time_step = collect_actor._time_step
-        obj_value = -time_step.reward
+        obj_value = collect_actor._env.get_info().objective_value
 
-        if obj_value < best_solution and not time_step.is_first():
+        if obj_value < best_solution:
             best_solution = obj_value
 
-        ep_rew += -obj_value
+        ep_rew += time_step.reward
         done = time_step.is_last()
 
     print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
