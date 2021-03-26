@@ -34,9 +34,11 @@ class ReverbLearnerPER(Learner):
                  train_step,
                  agent,
                  reverb_replay_buffer: ReverbReplayBuffer,
-                 initial_is_weight_exp: types.Float = 1.0,
+                 initial_is_weight_exp: types.Float = 0.5,
                  final_is_weight_exp: types.Float = 1.0,
                  is_weight_exp_steps: types.Int = 200000,
+                 priority_clip_min: types.Float = 0.05,
+                 priority_clip_max: types.Float = 100.0,
                  experience_dataset_fn=None,
                  triggers=None,
                  checkpoint_interval=100000,
@@ -51,12 +53,17 @@ class ReverbLearnerPER(Learner):
                                                  dtype=tf.float32)
         self._is_weight_exp = tf.Variable(self._initial_is_weight_exp, dtype=tf.float32, name='is_weight_exp')
 
+        self._priority_clip_min = priority_clip_min
+        self._priority_clip_max = priority_clip_max
+
         # Construir função de atualização das prioridades do dataset
         # SampleInfo('key', 'probability', 'table_size', 'priority')
         def update_priorities(sample, loss):
             (experience, sample_info) = sample
             td_errors = loss.extra.td_error_per_element
-            priorities = tf.clip_by_value(tf.math.abs(td_errors), clip_value_min=0.05, clip_value_max=1.0)
+            priorities = tf.clip_by_value(tf.math.abs(td_errors),
+                                          clip_value_min=priority_clip_min,
+                                          clip_value_max=priority_clip_max)
             reverb_replay_buffer.update_priorities(sample_info.key[:, 0], tf.cast(priorities, dtype=tf.float64))
 
         update_priorities_fn = update_priorities
