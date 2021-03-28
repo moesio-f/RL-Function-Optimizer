@@ -92,6 +92,8 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
             .astype(dtype=np.float32, copy=False)
         self._episode_ended = False
         self._steps_taken = 0
+        self._last_objective_value = self._function(self._state)
+        self._last_position = self._state
         return ts.restart(self._state)
 
     def _render(self):

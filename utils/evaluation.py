@@ -3,7 +3,6 @@ import numpy as np
 from functions.function import Function
 from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.environments.tf_environment import TFEnvironment
-from utils.render.function_drawer import FunctionDrawer
 
 
 def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Function,
@@ -14,33 +13,39 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
     
     trajectories = []
     best_trajectory = [np.finfo(np.float32).max]
+    best_it = None
+    best_pos = None
 
     for ep in range(episodes):
         time_step = eval_env.reset()
+        info = eval_env.get_info()
 
-        pos = time_step.observation.numpy()[0]
-        best_solution = function(pos)
+        best_solution_ep = info.objective_value[0]
+        best_it_ep = 0
+        best_pos_ep = info.position[0]
 
-        trajectory = [best_solution]
-        best_it = 0
+        trajectory = [best_solution_ep]
         it = 0
 
         while not time_step.is_last():
             it += 1
             action_step = policy_eval.action(time_step)
             time_step = eval_env.step(action_step.action)
+            info = eval_env.get_info()
 
-            obj_value = -time_step.reward.numpy()[0]
+            obj_value = info.objective_value[0]
 
-            if obj_value < best_solution:
-                best_solution = obj_value
-                pos = time_step.observation.numpy()[0]
-                best_it = it
+            if obj_value < best_solution_ep:
+                best_solution_ep = obj_value
+                best_it_ep = it
+                best_pos_ep = info.position[0]
 
-            trajectory.append(best_solution)
+            trajectory.append(best_solution_ep)
         
         if trajectory[-1] < best_trajectory[-1]:
             best_trajectory = trajectory
+            best_pos = best_pos_ep
+            best_it = best_it_ep
 
         trajectories.append(trajectory)
 
@@ -52,7 +57,7 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
     ax.plot(mean, 'r', label='Best mean value: {0}'.format(mean[-1]))
     ax.plot(best_trajectory, 'g', label='Best value: {0}'.format(best_trajectory[-1]))
 
-    ax.set(xlabel="Iterations\nBest solution at: {0}".format(pos),
+    ax.set(xlabel="Iterations\nBest solution at: {0}".format(best_pos),
            ylabel="Best objective value",
            title="{0} on {1} ({2} Dims) [{3}]".format(name_algorithm,
                                                       function.name,
@@ -74,6 +79,6 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
     plt.show()
 
     if verbose:
-        print('best_solution: ', best_solution)
+        print('best_solution: ', best_trajectory[-1])
         print('found at it: ', best_it)
-        print('at position: ', pos)
+        print('at position: ', best_pos)
