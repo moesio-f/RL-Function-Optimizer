@@ -7,7 +7,8 @@ from tf_agents.environments.tf_environment import TFEnvironment
 
 def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Function,
                    dims, name_algorithm, name_policy=None,
-                   save_to_file=False, verbose=False, episodes=50):
+                   save_to_file=False, verbose=False, show_all_trajectories=False,
+                   episodes=50):
     if name_policy is None:
         name_policy = policy_eval.__class__.__name__
     
@@ -52,8 +53,11 @@ def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy, function: Fun
     mean = np.mean(trajectories, axis=0)
 
     fig, ax = plt.subplots(figsize=(18.0, 10.0,))
-    for traj in trajectories:
-        ax.plot(traj, '--c', alpha=0.4)
+
+    if show_all_trajectories:
+        for traj in trajectories:
+            ax.plot(traj, '--c', alpha=0.4)
+
     ax.plot(mean, 'r', label='Best mean value: {0}'.format(mean[-1]))
     ax.plot(best_trajectory, 'g', label='Best value: {0}'.format(best_trajectory[-1]))
 
