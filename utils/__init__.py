@@ -1,1 +1,4 @@
-__all__ = ["render", "evaluation", "debug", "hyperparameters_hint"]
+__all__ = ["render", "evaluation", "debug",
+           "hyperparameters_hint",
+           "baselines"]
+
