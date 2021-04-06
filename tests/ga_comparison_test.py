@@ -9,6 +9,7 @@ from tf_agents.environments.tf_environment import TFEnvironment
 from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
 
+from environments.py_function_environment import PyFunctionEnvironment
 from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
 
 from deap import base
@@ -126,6 +127,17 @@ def run_random_policy(num_steps=2000) -> Trajectory:
                        trajectory_name='Random')
 
 
+def run_random_policy_bounded_actions(num_steps=2000) -> Trajectory:
+    env = PyFunctionEnvironment(function, dims)
+    env = TimeLimit(env, duration=num_steps)
+    tf_eval_env = TFPyEnvironment(environment=env)
+    policy = RandomTFPolicy(time_step_spec=tf_eval_env.time_step_spec(),
+                            action_spec=tf_eval_env.action_spec())
+
+    return run_episode(tf_eval_env=tf_eval_env, policy=policy,
+                       trajectory_name='Random-Bounded-Actions')
+
+
 def run_ea_simple(_toolbox: base.Toolbox, num_ind=300, num_gens=2000) -> Trajectory:
     pop = _toolbox.population(n=num_ind)
     hof = tools.HallOfFame(1)
@@ -165,5 +177,6 @@ tb = create_ga_env()
 
 plot_trajectories([run_td3_ig(num_steps=steps),
                    run_random_policy(num_steps=steps),
+                   run_random_policy_bounded_actions(num_steps=steps),
                    run_ea_simple(_toolbox=tb, num_gens=steps, num_ind=300),
                    run_ea_simple(_toolbox=tb, num_gens=steps, num_ind=1)])
