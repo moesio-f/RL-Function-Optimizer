@@ -64,7 +64,7 @@ def get_all_functions_descriptions(dims: int = 20) -> [FunctionDescription]:
 
 def load_policies_and_functions(functions_descriptions: [FunctionDescription],
                                 num_learning_episodes: dict) -> [PolicyFunctionPair]:
-    root_dir = os.getcwd()
+    root_dir = os.path.join(os.getcwd(), "models")
 
     pairs: [PolicyFunctionPair] = []
 
@@ -185,5 +185,5 @@ pol_func_pairs = load_policies_and_functions(functions_descriptions, {'Ackley': 
                                                                       'Sphere': 1000,
                                                                       'SumSquares': 760,
                                                                       'Zakharov': 300})
-pol_eval_data = evaluate_policies(pol_func_pairs, episodes=100, create_log=True)
+pol_eval_data = evaluate_policies(pol_func_pairs, episodes=5, create_log=True)
 write_to_csv(pol_eval_data)

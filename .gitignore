@@ -14,3 +14,4 @@ venv
 # Arquivos/Pastas locais
 Testes/
 weights/
+tests/models
