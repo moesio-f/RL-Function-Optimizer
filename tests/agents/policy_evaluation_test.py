@@ -7,7 +7,7 @@ from environments.py_function_environment_unbounded import PyFunctionEnvironment
 from functions.numpy_functions import *
 from utils.evaluation import evaluate_agent
 
-ROOT_DIR = os.path.join(os.getcwd(), "models")
+ROOT_DIR = os.path.join(os.getcwd(), "../models")
 
 policy_dir = os.path.join(ROOT_DIR, "policy")
 policy_collect_dir = os.path.join(ROOT_DIR, "policy_collect")

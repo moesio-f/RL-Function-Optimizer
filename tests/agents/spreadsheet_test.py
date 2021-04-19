@@ -64,7 +64,7 @@ def get_all_functions_descriptions(dims: int = 20) -> [FunctionDescription]:
 
 def load_policies_and_functions(functions_descriptions: [FunctionDescription],
                                 num_learning_episodes: dict) -> [PolicyFunctionPair]:
-    root_dir = os.path.join(os.getcwd(), "models")
+    root_dir = os.path.join(os.getcwd(), "../models")
 
     pairs: [PolicyFunctionPair] = []
 
