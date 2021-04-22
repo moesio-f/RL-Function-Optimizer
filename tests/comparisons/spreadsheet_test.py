@@ -34,12 +34,11 @@ class PolicyEvaluationData(namedtuple('PolicyEvaluationData',
                                       ('policy_function_pair_evaluated',
                                        'average_best_solution',
                                        'average_best_value_time',
-                                       'final_best_values_variance',
                                        'final_best_values_stddev'))):
     pass
 
 
-def get_all_functions_descriptions(dims: int = 20) -> [FunctionDescription]:
+def get_all_functions_descriptions(dims: int) -> [FunctionDescription]:
     functions = np_functions.list_all_functions()
     functions_descriptions: [FunctionDescription] = []
 
@@ -62,9 +61,11 @@ def get_all_functions_descriptions(dims: int = 20) -> [FunctionDescription]:
     return functions_descriptions
 
 
-def load_policies_and_functions(functions_descriptions: [FunctionDescription],
+def load_policies_and_functions(functions_descriptions: [FunctionDescription], algorithm: str, dims: int,
                                 num_learning_episodes: dict) -> [PolicyFunctionPair]:
     root_dir = os.path.join(os.getcwd(), "../models")
+    root_dir = os.path.join(root_dir, f'{algorithm}')
+    root_dir = os.path.join(root_dir, f'{str(dims)}D')
 
     pairs: [PolicyFunctionPair] = []
 
@@ -125,13 +126,11 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
 
         avg_best_solution = np.mean(best_solutions)
         avg_best_solution_time = np.rint(np.mean(best_solutions_iterations)).astype(np.int32)
-        var_best_solutions = np.var(best_solutions)
         stddev_best_solutions = np.std(best_solutions)
 
         return PolicyEvaluationData(policy_function_pair_evaluated=policy_function_pair,
                                     average_best_solution=avg_best_solution,
                                     average_best_value_time=avg_best_solution_time,
-                                    final_best_values_variance=var_best_solutions,
                                     final_best_values_stddev=stddev_best_solutions)
 
     for pair in policies_functions_pair:
@@ -154,7 +153,7 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
 
 
 def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
-                 file_name='td3_ig_data.csv'):
+                 file_name: str):
     with open(file_name, 'w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Function',
@@ -163,7 +162,6 @@ def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
                          'Number Learning Episodes',
                          'Average Best Solution',
                          'Average Best Solution Time (Iterations)',
-                         'Variance of best solutions',
                          'Stddev of best solutions'])
         for pol_eval_data in policies_evaluation_data:
             pol_function_pair = pol_eval_data.policy_function_pair_evaluated
@@ -174,16 +172,11 @@ def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
                              pol_function_pair.num_learning_episodes,
                              pol_eval_data.average_best_solution,
                              pol_eval_data.average_best_value_time,
-                             pol_eval_data.final_best_values_variance,
                              pol_eval_data.final_best_values_stddev])
 
 
-functions_descriptions = get_all_functions_descriptions()
-pol_func_pairs = load_policies_and_functions(functions_descriptions, {'Ackley': 300,
-                                                                      'Griewank': 150,
-                                                                      'Levy': 423,
-                                                                      'Sphere': 1000,
-                                                                      'SumSquares': 760,
-                                                                      'Zakharov': 300})
-pol_eval_data = evaluate_policies(pol_func_pairs, episodes=5, create_log=True)
-write_to_csv(pol_eval_data)
+functions_descriptions = get_all_functions_descriptions(dims=30)
+pol_func_pairs = load_policies_and_functions(functions_descriptions, algorithm='TD3-IG', dims=30,
+                                             num_learning_episodes={'Ackley': 2000})
+pol_eval_data = evaluate_policies(pol_func_pairs, episodes=100, create_log=True)
+write_to_csv(pol_eval_data, file_name='td3_ig_data.csv')
