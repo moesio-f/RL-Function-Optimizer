@@ -17,14 +17,14 @@ from environments.py_function_environment import PyFunctionEnvironment
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
-num_episodes = 30000  # @param {type:"integer"}
-collect_trajectories_per_training_iteration = 10  # @param {type:"integer"}
+num_episodes = 200  # @param {type:"integer"}
+collect_trajectories_per_training_iteration = 64  # @param {type:"integer"}
 
 # Hiperparametros do Agente
 lr = 3e-4  # @param {type:"number"}
 discount = 0.99  # @param {type:"number"}
 num_epochs = 25  # @param {type:"number"}
-train_sequence_length = 250  # @param {type: "integer"}
+train_sequence_length = 125  # @param {type: "integer"}
 
 # Networks
 actor_layer_params = [256, 256]
@@ -35,7 +35,7 @@ steps = 250  # @param {type:"integer"}
 steps_eval = 500  # @param {type:"integer"}
 
 dims = 2  # @param {type:"integer"}
-function = Sphere()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+function = Ackley()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
 
 env = PyFunctionEnvironment(function=function, dims=dims)
 
@@ -58,7 +58,7 @@ value_network = ValueNetwork(input_tensor_spec=obs_spec,
                              fc_layer_params=value_layer_params)
 
 # Creating agent
-optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=lr)
+optimizer = tf.keras.optimizers.Adam(learning_rate=lr)
 
 train_step = train_utils.create_train_step()
 
@@ -90,7 +90,41 @@ agent.train = common.function(agent.train)
 # Training
 agent.train_step_counter.assign(0)
 
+eval_interval = 25
+num_eval_episodes = 10
+
+
+def evaluate_current_policy(environment, policy, num_episodes):
+    total_return = 0.0
+    best_solutions = []
+    for _ in range(num_episodes):
+        time_step = environment.reset()
+        episode_return = 0.0
+        best_solution = np.finfo(np.float32).max
+
+        while not time_step.is_last():
+            action_step = policy.action(time_step)
+            time_step = environment.step(action_step.action)
+            episode_return += time_step.reward
+            obj_value = driver.env.get_info().objective_value[0]
+
+            if obj_value < best_solution:
+                best_solution = obj_value
+
+        best_solutions.append(best_solution)
+        total_return += episode_return
+
+    avg_return = total_return / num_episodes
+    return np.mean(best_solutions), avg_return.numpy()[0]
+
+
 for ep in range(num_episodes):
+    if ep % eval_interval == 0:
+        avg_best_sol, avg_return = evaluate_current_policy(environment=tf_env_eval,
+                                                           policy=agent.policy,
+                                                           num_episodes=num_eval_episodes)
+        print('avg_best_solution: {0} avg_return: {1}'.format(avg_best_sol, avg_return))
+
     trajectories = []
 
     for _ in range(collect_trajectories_per_training_iteration):
@@ -111,10 +145,4 @@ for ep in range(num_episodes):
 
     agent.train(experiences)
 
-    best_solutions = []
-    ep_rewards = []
-    for traj in trajectories:
-        best_solutions.append(min([function(x) for x in tf.unstack(traj.observation[0])]))
-        ep_rewards.append(sum(tf.unstack(traj.reward[0])))
-    print('episode = {0} Average Best solution on episode: {1} Average Return on episode: {2}'.format(
-        ep, np.mean(best_solutions), np.mean(ep_rewards)))
+    print('episode = {0}'.format(ep))
