@@ -87,7 +87,7 @@ for ep in range(num_episodes):
 
     observations = tf.unstack(experience.observation[0])
     rewards = tf.unstack(experience.reward[0])
-    best_solution = min([function(x) for x in observations])
+    best_solution = min([function(x.numpy()) for x in observations])
     ep_rew = sum(rewards)
     print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
