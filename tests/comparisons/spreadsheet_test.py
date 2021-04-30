@@ -138,7 +138,7 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
 
     if create_log:
         with open('log.txt', 'w') as file:
-            file.write('Informações gerais sobre os testes realizados para obter os dados:\n')
+            file.write('\n\nInformações gerais sobre os testes realizados para obter os dados:\n')
             file.write('\tCada função foi executada por {0} episódios.\n'.format(episodes))
             file.write('\tCada episódios permitiu o agente tomar {0} passos (steps).\n'.format(steps))
             file.write('Informações sobre cada função executada e testada:\n')
@@ -175,8 +175,13 @@ def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
                              pol_eval_data.final_best_values_stddev])
 
 
-functions_descriptions = get_all_functions_descriptions(dims=30)
-pol_func_pairs = load_policies_and_functions(functions_descriptions, algorithm='TD3-IG', dims=30,
-                                             num_learning_episodes={'Ackley': 2000})
-pol_eval_data = evaluate_policies(pol_func_pairs, episodes=100, create_log=True)
-write_to_csv(pol_eval_data, file_name='td3_ig_data.csv')
+if __name__ == "__main__":
+    dims = 30
+    episodes = 100
+
+    functions_descriptions = get_all_functions_descriptions(dims=dims)
+    pol_func_pairs = load_policies_and_functions(functions_descriptions, algorithm='REINFORCE-BL', dims=dims,
+                                                 num_learning_episodes={'Ackley': 2000,
+                                                                        'Sphere': 2000})
+    pol_eval_data = evaluate_policies(pol_func_pairs, episodes=episodes, create_log=True)
+    write_to_csv(pol_eval_data, file_name='reinforce_data.csv')

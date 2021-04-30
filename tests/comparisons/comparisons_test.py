@@ -2,37 +2,35 @@ import os
 import tensorflow as tf
 from collections import namedtuple
 import matplotlib.pyplot as plt
-
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.environments.wrappers import TimeLimit
 from tf_agents.environments.tf_environment import TFEnvironment
 from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
-
 from environments.py_function_environment import PyFunctionEnvironment
 from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
-
 from deap import base
 from deap import creator
 from deap import tools
 from deap import algorithms
-
 from functions.numpy_functions import *
+
+MODELS_DIR = os.path.join(os.getcwd(), "../models")
 
 
 class Trajectory(namedtuple('Trajectory', ('list_best_values', 'name', 'best_iteration', 'best_position'))):
     pass
 
 
-def plot_trajectories(trajectories: [Trajectory], save_to_file: bool = True):
+def plot_trajectories(trajectories: [Trajectory], dims: int, save_to_file: bool = True):
     fig, ax = plt.subplots(figsize=(18.0, 10.0,))
 
     for traj in trajectories:
         ax.plot(traj.list_best_values, label='{0} | Best value: {1}'.format(traj.name, traj.list_best_values[-1]))
 
-    ax.set(xlabel="Iterations/Generations",
+    ax.set(xlabel="Iterations",
            ylabel="Best objective value",
-           title="{0} ({1}D): eaSimple vs TD3-IG vs Random".format(function.name, dims))
+           title="{0} ({1}D)".format(function.name, str(dims)))
 
     ax.set_xscale('symlog', base=2)
     ax.set_xlim(left=0)
@@ -82,7 +80,7 @@ def run_episode(tf_eval_env: TFEnvironment, policy: TFPolicy, trajectory_name: s
                       best_position=best_pos)
 
 
-def create_ga_env() -> base.Toolbox:
+def create_ga_env(dims: int) -> base.Toolbox:
     def evalFunction(individual):
         return function(np.array(individual, dtype=np.float32)),
 
@@ -104,19 +102,21 @@ def create_ga_env() -> base.Toolbox:
     return toolbox_
 
 
-def run_td3_ig(num_steps=2000, policy_dir_name: str = 'policy') -> Trajectory:
-    policy_dir = os.path.join(ROOT_DIR, policy_dir_name)
-    policy = tf.compat.v2.saved_model.load(policy_dir)
+def run_rl_agent(policy_path: str, trajectory_name: str, num_steps: int, dims: int) -> Trajectory:
+    policy_path = os.path.join(MODELS_DIR, policy_path)
+    policy_path = os.path.join(policy_path, f'{dims}D')
+    policy_path = os.path.join(policy_path, function.name)
+    policy = tf.compat.v2.saved_model.load(policy_path)
 
     env = PyFunctionEnvironmentUnbounded(function, dims)
     env = TimeLimit(env, duration=num_steps)
     tf_eval_env = TFPyEnvironment(environment=env)
 
     return run_episode(tf_eval_env=tf_eval_env, policy=policy,
-                       trajectory_name='TD3-IG')
+                       trajectory_name=trajectory_name)
 
 
-def run_random_policy(num_steps=2000) -> Trajectory:
+def run_random_policy(dims: int, num_steps=2000) -> Trajectory:
     env = PyFunctionEnvironmentUnbounded(function, dims)
     env = TimeLimit(env, duration=num_steps)
     tf_eval_env = TFPyEnvironment(environment=env)
@@ -127,7 +127,7 @@ def run_random_policy(num_steps=2000) -> Trajectory:
                        trajectory_name='Random')
 
 
-def run_random_policy_bounded_actions(num_steps=2000) -> Trajectory:
+def run_random_policy_bounded_actions(dims: int, num_steps=2000) -> Trajectory:
     env = PyFunctionEnvironment(function, dims)
     env = TimeLimit(env, duration=num_steps)
     tf_eval_env = TFPyEnvironment(environment=env)
@@ -168,15 +168,46 @@ def run_ea_simple(_toolbox: base.Toolbox, num_ind=300, num_gens=2000) -> Traject
                       best_position=None)
 
 
-function = Ackley()
-dims = 20
-steps = 2000
+def get_average_trajectory(trajectories: [Trajectory]):
+    best_values = []
+    best_iterations = []
+    best_positions = []
+    name = trajectories[0].name
 
-ROOT_DIR = os.getcwd()
-tb = create_ga_env()
+    for traj in trajectories:
+        best_values.append(traj.list_best_values)
+        best_iterations.append(traj.best_iteration)
+        best_positions.append(traj.best_position)
 
-plot_trajectories([run_td3_ig(num_steps=steps),
-                   run_random_policy(num_steps=steps),
-                   run_random_policy_bounded_actions(num_steps=steps),
-                   run_ea_simple(_toolbox=tb, num_gens=steps, num_ind=300),
-                   run_ea_simple(_toolbox=tb, num_gens=steps, num_ind=1)])
+    return Trajectory(list_best_values=np.mean(np.array(best_values, dtype=np.float32), axis=0),
+                      best_iteration=np.mean(np.array(best_iterations, dtype=np.int32), axis=0).astype(np.int32),
+                      best_position=np.mean(np.array(best_positions, dtype=np.float32), axis=0),
+                      name=name)
+
+
+if __name__ == '__main__':
+    function = Sphere()
+    DIMS = 30
+    STEPS = 500
+    EPISODES = 100
+
+    reinforce_trajectories: [Trajectory] = []
+    sac_trajectories: [Trajectory] = []
+    td3_trajectories: [Trajectory] = []
+    td3_ig_trajectories: [Trajectory] = []
+
+    for _ in range(EPISODES):
+        reinforce_trajectories.append(run_rl_agent(policy_path='REINFORCE-BL',
+                                                   trajectory_name='Reinforce', num_steps=STEPS, dims=DIMS))
+        sac_trajectories.append(run_rl_agent(policy_path='SAC-AAT',
+                                             trajectory_name='SAC', num_steps=STEPS, dims=DIMS))
+        td3_trajectories.append(run_rl_agent(policy_path='TD3',
+                                             trajectory_name='TD3', num_steps=STEPS, dims=DIMS))
+        td3_ig_trajectories.append(run_rl_agent(policy_path='TD3-IG',
+                                                trajectory_name='TD3-IG', num_steps=STEPS, dims=DIMS))
+
+    plot_trajectories(
+        [get_average_trajectory(reinforce_trajectories),
+         get_average_trajectory(sac_trajectories),
+         get_average_trajectory(td3_trajectories),
+         get_average_trajectory(td3_ig_trajectories)], dims=DIMS)
