@@ -192,12 +192,6 @@ class DixonPrice(Function):
         sum = ii * (2*xi**2 - xold) ** 2
         term2 = tf.reduce_sum(sum, axis=0)
         return term1 + term2
-        """ 
-        sum1 = (x[0] - 1) ** 2
-        sum2 = 0
-        for i in range(1, x.shape[0]):
-            sum2 += i * (2 * x[i]**2 - x[i -1]) ** 2
-        return sum1 + sum2 """
 
 
 def list_all_functions() -> [Function]:

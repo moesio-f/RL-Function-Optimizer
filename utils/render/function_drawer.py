@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+from functions.function import Function
 
 # TODO: Atualizar classes para renderizar os ambientes
 
@@ -17,27 +18,21 @@ class FunctionDrawer(object):
         note: bigger numbers make interactive window slow
     """
 
-    def __init__(self, function=None, domain=(-10, 10), resolution=80):
-        if not function:
-            def linear(x):
-                return tf.reduce_sum(x, axis=0)
-
-            function = linear
-        self.set_mesh(function, domain, resolution)
+    def __init__(self, function:Function, resolution=80):
+        self.set_mesh(function, resolution)
 
     #  Set internal mesh to a new function
-    def set_mesh(self, function, domain: tuple, resolution=80):
+    def set_mesh(self, function: Function, resolution=80):
 
         self.function = function
         self.ax = plt.subplot(projection='3d')
-        self.domain = domain
         self.quality = resolution
 
         # creating mesh
-        x = y = np.linspace(domain[0], domain[1], self.quality)
+        x = y = np.linspace(function.domain.min, function.domain.max, self.quality)
         X, Y = np.lib.meshgrid(x, y)
 
-        zs = [np.ravel(X), np.ravel(Y)]
+        zs = np.array([np.ravel(X), np.ravel(Y)])
         zs = tf.convert_to_tensor(zs, dtype=tf.float32)
         zs = self.function(zs).numpy()
 
@@ -50,7 +45,9 @@ class FunctionDrawer(object):
         self.draw()
 
     def draw_point(self, point, color='r'):
-        z = self.function(point).numpy()  # get 3d height
+        z = self.function(point)
+        if tf.is_tensor(z):
+            z = z.numpy()
         x, y = point
         self.ax.scatter(x, y, z, color=color)
         self.draw()

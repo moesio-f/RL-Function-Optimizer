@@ -57,7 +57,7 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                                        maximum=self._domain_max,
                                        name='observation')
 
-    def _current_time_step(self):
+    def _current_time_step(self) -> ts.TimeStep:
         # Convert's states to a TimeStep()
 
         state = self._state.value()
@@ -86,7 +86,7 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                            discount=discount,
                            observation=state)
 
-    def _reset(self):
+    def _reset(self) -> ts.TimeStep:
         # Resets the the environments variables
         reset_ended = self._episode_ended.assign(value=False)
         reset_steps = self._steps_taken.assign(value=0)
