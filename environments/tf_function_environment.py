@@ -16,14 +16,24 @@ MAX_STEPS = 50000
 
 
 class TFFunctionEnvironment(tf_environment.TFEnvironment):
-    def __init__(self, function: Function, dims):
+    def __init__(self, function: Function, dims, clip_actions: bool = False):
         self._function = function
         self._domain_min = tf.cast(function.domain.min, dtype=tf.float32)
         self._domain_max = tf.cast(function.domain.max, dtype=tf.float32)
         self._dims = dims
 
-        action_spec = self._set_action_spec()
-        observation_spec = self._set_observation_spec()
+        action_spec = specs.BoundedTensorSpec(shape=(self._dims,), dtype=tf.float32,
+                                              minimum=-1.0,
+                                              maximum=1.0,
+                                              name='action')
+        if not clip_actions:
+            action_spec = specs.TensorSpec.from_spec(action_spec)
+
+        observation_spec = specs.BoundedTensorSpec(shape=(self._dims,), dtype=tf.float32,
+                                                   minimum=self._domain_min,
+                                                   maximum=self._domain_max,
+                                                   name='observation')
+
         time_step_spec = ts.time_step_spec(observation_spec)
         super(TFFunctionEnvironment, self).__init__(time_step_spec, action_spec)
 
@@ -44,18 +54,6 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
         self._last_position = common.create_variable(name='last_position',
                                                      initial_value=self._state,
                                                      dtype=tf.float32)
-
-    def _set_action_spec(self) -> types.Spec:
-        return specs.BoundedTensorSpec(shape=(self._dims,), dtype=tf.float32,
-                                       minimum=-1.0,
-                                       maximum=1.0,
-                                       name='action')
-
-    def _set_observation_spec(self) -> types.Spec:
-        return specs.BoundedTensorSpec(shape=(self._dims,), dtype=tf.float32,
-                                       minimum=self._domain_min,
-                                       maximum=self._domain_max,
-                                       name='observation')
 
     def _current_time_step(self) -> ts.TimeStep:
         # Convert's states to a TimeStep()

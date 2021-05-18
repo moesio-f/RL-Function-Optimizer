@@ -7,7 +7,7 @@ from collections import namedtuple
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.environments.wrappers import TimeLimit
 
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
+from environments.py_function_environment import PyFunctionEnvironment
 import functions.numpy_functions as np_functions
 
 
@@ -91,8 +91,8 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
         nonlocal steps
         nonlocal episodes
 
-        env = PyFunctionEnvironmentUnbounded(function=policy_function_pair.function_description.function,
-                                             dims=policy_function_pair.function_description.dims)
+        env = PyFunctionEnvironment(function=policy_function_pair.function_description.function,
+                                    dims=policy_function_pair.function_description.dims)
         env = TimeLimit(env=env, duration=steps)
         tf_env = TFPyEnvironment(environment=env)
 

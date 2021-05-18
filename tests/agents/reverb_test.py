@@ -6,7 +6,7 @@ sys.path.append('/content/RL-Function-Optimizer/')
 import os
 
 from functions.numpy_functions import *
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
+from environments.py_function_environment import PyFunctionEnvironment
 
 """Imports para Main (Agente, Redes, etc)"""
 
@@ -91,7 +91,7 @@ min_reward = -500  # @param {type:"number"}
 max_reward = 500 # @param {type:"number"}
 reward_scale = 1e-2  # @param {type:"number"}
 
-env = PyFunctionEnvironmentUnbounded(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims)
 env = RewardClip(env=env, min_reward=min_reward, max_reward=max_reward)
 env = RewardScale(env=env, scale_factor=reward_scale)
 

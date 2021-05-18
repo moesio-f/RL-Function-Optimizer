@@ -8,7 +8,6 @@ from tf_agents.environments.tf_environment import TFEnvironment
 from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
 from environments.py_function_environment import PyFunctionEnvironment
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
 from deap import base
 from deap import creator
 from deap import tools
@@ -108,7 +107,7 @@ def run_rl_agent(policy_path: str, trajectory_name: str, num_steps: int, dims: i
     policy_path = os.path.join(policy_path, function.name)
     policy = tf.compat.v2.saved_model.load(policy_path)
 
-    env = PyFunctionEnvironmentUnbounded(function, dims)
+    env = PyFunctionEnvironment(function, dims)
     env = TimeLimit(env, duration=num_steps)
     tf_eval_env = TFPyEnvironment(environment=env)
 
@@ -117,7 +116,7 @@ def run_rl_agent(policy_path: str, trajectory_name: str, num_steps: int, dims: i
 
 
 def run_random_policy(dims: int, num_steps=2000) -> Trajectory:
-    env = PyFunctionEnvironmentUnbounded(function, dims)
+    env = PyFunctionEnvironment(function, dims)
     env = TimeLimit(env, duration=num_steps)
     tf_eval_env = TFPyEnvironment(environment=env)
     policy = RandomTFPolicy(time_step_spec=tf_eval_env.time_step_spec(),
@@ -128,7 +127,7 @@ def run_random_policy(dims: int, num_steps=2000) -> Trajectory:
 
 
 def run_random_policy_bounded_actions(dims: int, num_steps=2000) -> Trajectory:
-    env = PyFunctionEnvironment(function, dims)
+    env = PyFunctionEnvironment(function, dims, clip_actions=True)
     env = TimeLimit(env, duration=num_steps)
     tf_eval_env = TFPyEnvironment(environment=env)
     policy = RandomTFPolicy(time_step_spec=tf_eval_env.time_step_spec(),

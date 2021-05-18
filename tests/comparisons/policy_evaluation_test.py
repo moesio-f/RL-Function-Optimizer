@@ -3,7 +3,6 @@ import tensorflow as tf
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.environments.wrappers import TimeLimit
 from environments.py_function_environment import PyFunctionEnvironment
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
 from functions.numpy_functions import *
 from utils.evaluation import evaluate_agent
 
@@ -19,7 +18,7 @@ function = Zakharov()
 dims = 20
 steps = 2000
 
-env = PyFunctionEnvironmentUnbounded(function, dims)
+env = PyFunctionEnvironment(function, dims)
 env = TimeLimit(env, duration=steps)
 
 tf_eval_env = TFPyEnvironment(environment=env)

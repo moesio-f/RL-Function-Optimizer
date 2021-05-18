@@ -1,12 +1,11 @@
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
 from environments.tf_function_environment import TFFunctionEnvironment
-from environments.tf_function_environment_unbounded import TFFunctionEnvironmentUnbounded
 from functions.tensorflow_functions import *
 
 dims = 20
 function = Sphere()
 
-tf_env = TFFunctionEnvironmentUnbounded(function=function, dims=dims)
+tf_env = TFFunctionEnvironment(function=function, dims=dims)
 policy = RandomTFPolicy(time_step_spec=tf_env.time_step_spec(),
                         action_spec=tf_env.action_spec())
 

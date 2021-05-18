@@ -1,3 +1,4 @@
+
 import numpy as np
 from numpy.random import default_rng
 from collections import namedtuple
@@ -14,7 +15,7 @@ class FunctionEnvironmentInfo(namedtuple('FunctionEnvironmentInfo', ('position',
 
 
 class PyFunctionEnvironment(py_environment.PyEnvironment):
-    def __init__(self, function: Function, dims) -> None:
+    def __init__(self, function: Function, dims, clip_actions: bool = False) -> None:
         super().__init__()
         self._rng = default_rng()
         self._function = function
@@ -30,21 +31,20 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         self._last_objective_value = self._function(self._state)
         self._last_position = self._state
 
-        self._action_spec = self._set_action_spec()
-
-        self._observation_spec = self._set_observation_spec()
-
-    def _set_action_spec(self) -> types.Spec:
-        return array_spec.BoundedArraySpec(shape=(self._dims,), dtype=np.float32,
-                                           minimum=-1.0,
-                                           maximum=1.0,
-                                           name='action')
-
-    def _set_observation_spec(self) -> types.Spec:
-        return array_spec.BoundedArraySpec(shape=(self._dims,), dtype=np.float32,
-                                           minimum=self._domain.min,
-                                           maximum=self._domain.max,
-                                           name='observation')
+        self._action_spec = array_spec.BoundedArraySpec(shape=(self._dims,),
+                                                        dtype=np.float32,
+                                                        minimum=-1.0,
+                                                        maximum=1.0,
+                                                        name='action')
+        if not clip_actions:
+            self._action_spec = array_spec.ArraySpec.from_spec(self._action_spec)
+        
+        self._observation_spec = array_spec.BoundedArraySpec(
+                shape=(self._dims,),
+                dtype=np.float32,
+                minimum=self._domain.min,
+                maximum=self._domain.max,
+                name='observation')
 
     def action_spec(self):
         return self._action_spec

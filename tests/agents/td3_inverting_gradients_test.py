@@ -1,7 +1,7 @@
 """Importando as funções e o ambiente."""
 
 from functions.numpy_functions import *
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
+from environments.py_function_environment import PyFunctionEnvironment
 
 """Imports para Main (Agente, Redes, etc)"""
 
@@ -68,7 +68,7 @@ min_reward = -1e5  # @param {type:"number"}
 max_reward = 1e5  # @param {type:"number"}
 reward_scale = 1.0  # @param {type:"number"}
 
-env = PyFunctionEnvironmentUnbounded(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims)
 env = RewardScale(env=env, scale_factor=reward_scale)
 env = RewardClip(env=env, min_reward=min_reward, max_reward=max_reward)
 
