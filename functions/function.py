@@ -1,7 +1,9 @@
 import abc
-from collections import namedtuple
-Domain = namedtuple('hypercube', ['min', 'max'])
+from typing import NamedTuple
 
+class Domain(NamedTuple):
+    min: float
+    max: float
 
 class Function(object):
     def __init__(self, domain: Domain):
