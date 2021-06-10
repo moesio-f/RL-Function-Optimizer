@@ -115,12 +115,12 @@ class MultiAgentFunctionEnv(py_environment.PyEnvironment):
         self.func = function
         self.dims = dims
         self.n_agents = n_agents
-        self.obs_shape = (dims, n_agents)
+        self.state_shape = (n_agents, dims)
         
-        self._action_spec = array_spec.BoundedArraySpec(self.obs_shape, np.float32, -1.0, 1.0, 'action')
-        self._reward_spec = array_spec.ArraySpec((1,self.n_agents), np.float32, 'reward')
+        self._action_spec = array_spec.BoundedArraySpec(self.state_shape, np.float32, -1.0, 1.0, 'action')
+        self._reward_spec = array_spec.ArraySpec((n_agents,), np.float32, 'reward')
 
-        self._observation_spec = array_spec.BoundedArraySpec(self.obs_shape, np.float32,
+        self._observation_spec = array_spec.BoundedArraySpec(self.state_shape, np.float32,
                 function.domain.min, function.domain.max, 'observation')
         self._actor_obs_spec = array_spec.BoundedArraySpec((dims,), np.float32,
                 function.domain.min, function.domain.max, 'actor_observation')
@@ -142,7 +142,7 @@ class MultiAgentFunctionEnv(py_environment.PyEnvironment):
     
     def _initial_state(self) -> np.ndarray:
         min, max = self.func.domain
-        state = np.random.uniform(min, max, self.obs_shape)
+        state = np.random.uniform(min, max, self.state_shape)
         return state.astype(dtype=np.float32, copy=False)
     
     def _reset(self) -> ts.TimeStep:
@@ -153,7 +153,7 @@ class MultiAgentFunctionEnv(py_environment.PyEnvironment):
         min, max = self.func.domain
         self.state = self.state + action
         self.state = np.clip(self.state, min, max)
-        reward = -self.func(self.state)
+        reward = -self.func(self.state.T)
         return ts.transition(self.state, np.sum(reward))
 
     def render(self, mode: Text) -> Optional[types.NestedArray]:

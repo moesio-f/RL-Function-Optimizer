@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 from functions.function import Function
 
 # TODO: Atualizar classes para renderizar os ambientes
@@ -33,8 +32,7 @@ class FunctionDrawer(object):
         X, Y = np.lib.meshgrid(x, y)
 
         zs = np.array([np.ravel(X), np.ravel(Y)])
-        zs = tf.convert_to_tensor(zs, dtype=tf.float32)
-        zs = self.function(zs).numpy()
+        zs = self.function(zs)
 
         Z = zs.reshape(X.shape)
         self.mesh = (X, Y, Z)
@@ -44,15 +42,13 @@ class FunctionDrawer(object):
         self.ax.plot_surface(self.mesh[0], self.mesh[1], self.mesh[2], **kwargs)
         self.draw()
 
-    def draw_point(self, point, color='r'):
+    def draw_point(self, point, color='r', **kwargs):
         z = self.function(point)
-        if tf.is_tensor(z):
-            z = z.numpy()
         x, y = point
         self.ax.scatter(x, y, z, color=color)
-        self.draw()
+        self.draw(**kwargs)
 
-    def draw(self, pause_time: float = None, **kwargs):
+    def draw(self, pause_time: float = 0.001):
         if pause_time:
             plt.pause(pause_time)
         plt.draw()
