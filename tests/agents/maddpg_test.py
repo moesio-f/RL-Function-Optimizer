@@ -18,7 +18,6 @@ from tf_agents.policies.tf_policy import TFPolicy
 from tf_agents.policies.policy_saver import PolicySaver
 from tf_agents.networks import Sequential
 from tf_agents.utils import common
-
 from tf_agents.policies.actor_policy import ActorPolicy
 
 
@@ -119,9 +118,6 @@ class Agent:
                  n_actions: int, agent_idx: int, gamma=0.95, tau=0.01, 
                  actor_fc_params=(256,256), critic_fc_params=(256,256),
                  chckpt_dir=None):
-        """)
-        actor_fc_params stands for "fully_connected"
-        """
         
         self.gamma = gamma
         self.tau = tau
@@ -190,8 +186,10 @@ class Agent:
                      optimizer: tf.keras.optimizers.Optimizer):
         with tf.GradientTape() as tape:
             critic_value = self.evaluate(states, actions)
-            critic_loss = tf.keras.losses.mse(target_q, critic_value)
-        optimizer.minimize(critic_loss, self.critic.trainable_variables, tape=tape)
+            critic_loss = tf.square(target_q - critic_value)
+            loss = tf.reduce_mean(critic_loss)
+        optimizer.minimize(loss, self.critic.trainable_variables, tape=tape)
+        return critic_loss
 
 
     def train_actor(self, states: tf.Tensor, actions: tf.Tensor, optimizer: tf.keras.optimizers.Optimizer):
@@ -211,11 +209,12 @@ class Agent:
             # returning to original shape
             updated_actions = tf.stack([agents_actions[:, i] for i in range(batches)])
 
-            loss = self.evaluate(states, updated_actions)
-            # regularization = tf.reduce_mean(new_actions)
-            loss = -tf.reduce_mean(loss) # + 1e-3 * regularization
+            q_value = self.evaluate(states, updated_actions)
+            regularization = tf.reduce_mean(tf.square(new_actions))
+            loss = -tf.reduce_mean(q_value)  + 1e-3 * regularization
         optimizer.minimize(loss, self.actor.trainable_variables, tape=tape)
-    
+        return loss
+
     def save_checkpoint(self):
         pass
 
@@ -291,20 +290,22 @@ class MADDPG:
             agent.train_actor(states, actions, self.actor_optimizer)
 
             agent.update_targets()
+
     def save(self):
         for agent in self.agents:
             agent.save_checkpoint()
 
 from functions.numpy_functions import *
 from environments.gym_env import MultiAgentFunctionEnv
+from collections import deque
 
 if __name__ == '__main__':
-    BATCH_SIZE = 32
-    N_EPISODES = 2048
+    BATCH_SIZE = 1024
+    N_EPISODES = 10_000
     N_STEPS = 25
     N_AGENTS = 1
     DIMS = 2
-    EVALUATE = False
+    display = False
 
     FUNCTION = Sphere()
     N_ACTIONS = DIMS
@@ -330,16 +331,13 @@ if __name__ == '__main__':
     #         state = next_state
 
     PRINT_INTERVAL = 10
+    SAVE_INTERVAL = 128
+    UPDATE_RATE = 10
     total_steps = 0
-    score_history = []
-    best_score = 0
+    best_score = float('-inf')
 
-    if EVALUATE:
-        # maddpg_agents.load
-        pass
-
-    checkpointer = common.Checkpointer("tmp/maddpg", agent=maddpg_agents.agents[0].actor)
-    tf.compat.v1.train.get_or_create_global_step()
+    # global_step = tf.compat.v1.train.get_or_create_global_step()
+    # checkpointer = common.Checkpointer("tmp/maddpg", 1, agent0=maddpg_agents.agents[0].actor, global_step=global_step)
 
     for ep in range(N_EPISODES):
         obs = env.reset()
@@ -355,7 +353,7 @@ if __name__ == '__main__':
             
             memory.add(obs, actions, reward, next_obs, done)
 
-            if total_steps % 100 == 64 and not EVALUATE:
+            if len(memory) > BATCH_SIZE * N_STEPS and not display and total_steps % UPDATE_RATE == 0:
                 maddpg_agents.train(memory.sample(BATCH_SIZE))
 
             obs = next_obs
@@ -364,16 +362,15 @@ if __name__ == '__main__':
                 score[i] += float(reward[i])
             
             total_steps += 1
-        score_history.append(score)
-        avg_score = np.mean(score_history[-100:])
+            # global_step.assign_add(1)
 
-        if not EVALUATE:
-            if avg_score > best_score:
-                maddpg_agents.save_checkpoint()
-                best_score = avg_score
+        best_score = max(best_score, score[0])
+
         if ep % PRINT_INTERVAL == 0 and ep > 0:
-            print('episode', ep, 'average score {:.1f}'.format(avg_score))
-            checkpointer.save()
+            print(f'episode {ep} best score: {best_score} | current score {score[0]}')
+        
+        # if ep % SAVE_INTERVAL == 0:
+            # checkpointer.save(global_step)
     
     for e in range(4):
         state = env.reset()
