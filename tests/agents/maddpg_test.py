@@ -1,28 +1,13 @@
 from typing import List, Tuple
 
+import numpy as np
 import tensorflow as tf
 
-import numpy as np
-from tf_agents.agents.ddpg.ddpg_agent import DdpgAgent
-
-# from tf_agents.agents.tf_agent import LossInfo, TFAgent
-# from tf_agents.policies.ou_noise_policy import OUNoisePolicy
-# from tf_agents.policies.tf_policy import TFPolicy
-# from tf_agents.trajectories import time_step as ts
-# from tf_agents.trajectories import policy_step
-# from tf_agents.typing import types
-# from tf_agents.replay_buffers.tf_uniform_replay_buffer import TFUniformReplayBuffer
-# from tf_agents.trajectories.trajectory import Transition
-
-from tf_agents.policies.tf_policy import TFPolicy
-from tf_agents.policies.policy_saver import PolicySaver
 from tf_agents.networks import Sequential
 from tf_agents.utils import common
-from tf_agents.policies.actor_policy import ActorPolicy
-
 
 class MultiAgentReplayBuffer(object):
-    def __init__(self, size, n_agents):
+    def __init__(self, size: int, n_agents: int):
         """Create Prioritized Replay buffer.
 
         each data added in this replay buffer is a tuple: 
@@ -51,8 +36,9 @@ class MultiAgentReplayBuffer(object):
         self._storage = []
         self._next_idx = 0
 
-    def add(self, observations, actions, rewards, next_observations, dones):
-        data = (observations, actions, rewards, next_observations, dones)
+    # input shape (n_agents, dimentions)
+    def add(self, obs, actions, rewards, next_obs, dones):
+        data = (obs, actions, rewards, next_obs, dones)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
@@ -60,16 +46,15 @@ class MultiAgentReplayBuffer(object):
             self._storage[self._next_idx] = data
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
-    # each return has shape (batch, n_agents, dimentions)
     def sample_index(self, indexes: List[int]):
         states, actions, rewards, next_states, dones = [], [], [], [], []
         for i in indexes:
-            data = self._storage[i] 
-            observations, action, reward, obs_tp1, done = data
-            states.append(np.array(observations, copy=False))
+            data = self._storage[i]
+            obs, action, reward, next_obs, done = data
+            states.append(np.array(obs, copy=False))
             actions.append(np.array(action, copy=False))
+            next_states.append(np.array(next_obs, copy=False))
             rewards.append(reward)
-            next_states.append(np.array(obs_tp1, copy=False))
             dones.append(done)
         return np.array(states), np.array(actions), np.array(rewards), np.array(next_states), np.array(dones)
 
@@ -83,32 +68,19 @@ class MultiAgentReplayBuffer(object):
         return idx
 
     def sample(self, batch_size):
-        """Sample a batch of experiences.
-
-        Parameters
-        ----------
-        batch_size: int
-            How many transitions to sample.
-
-        Returns
-        -------
-        obs_batch: np.array
-            batch of agents observations
-        act_batch: np.array
-            batch of agents actions executed given obs_batch
-        rew_batch: np.array
-            agents rewards received as results of executing act_batch
-        next_obs_batch: np.array
-            next set of agents observations seen after executing act_batch
-        done_mask: np.array
-            done_mask[i] = 1 if executing act_batch[i] resulted in
-            the end of an episode and 0 otherwise.
-        """
         if batch_size > 0:
             idxes = self.make_index(batch_size)
         else:
             idxes = range(0, len(self._storage))
-        return self.sample_index(idxes)
+        states, actions, next_states, rewards, dones = self.sample_index(idxes)
+        
+        states = np.swapaxes(states, 0, 1)
+        actions = np.swapaxes(actions, 0, 1)
+        next_states = np.swapaxes(next_states, 0, 1)
+        rewards = np.swapaxes(rewards, 0, 1)
+        dones = np.swapaxes(dones, 0, 1)
+
+        return states, actions, next_states, rewards, dones
 
     def collect(self):
         return self.sample(-1)
@@ -163,22 +135,19 @@ class Agent:
         action = self.actor(obs)[0]
         return action
 
-    # input shape (batch, n_agents, dims) -> (batch, n_agents*dims)
-    def flatten(self, states, actions):
-        states = tf.reshape(states, (states.shape[0], -1))
-        actions = tf.reshape(actions, (actions.shape[0], -1))
-        return states, actions
+    # input shape for each arg: (n_agents, batch_size, dims) 
+    # output shape: (batch, n_agents*states + n_agents*actions)
+    def preprocess(self, states, actions):
+        states = tf.concat(tf.unstack(states), -1)
+        actions = tf.concat(tf.unstack(actions), -1)
+        return tf.concat([states, actions], -1)
     
-    # input shape = (batch, n_agents, dims)
     def evaluate(self, states: tf.Tensor, actions: tf.Tensor):
-        input = self.flatten(states, actions)
-        input = self.concatenate(input)
+        input = self.preprocess(states, actions)
         return self.critic(input)[0]
     
-    # input shape = (batch, n_agents, dims)
     def evaluate_target(self, states: tf.Tensor, actions: tf.Tensor):
-        input = self.flatten(states, actions)
-        input = self.concatenate(input)
+        input = self.preprocess(states, actions)
         return self.target_critic(input)[0]
 
     # train critic based on all states and actions of environment
@@ -192,24 +161,18 @@ class Agent:
         return critic_loss
 
 
+    # input shape for each arg: (n_agents, batch_size, dims) 
     def train_actor(self, states: tf.Tensor, actions: tf.Tensor, optimizer: tf.keras.optimizers.Optimizer):
-        observations = states[:, self.index] # batch of observations of the current agent
-
-        batches, n_agents, _ = actions.shape
-        # changing shape to (agents, batches, dims)
-        agents_actions = [actions[:, i] for i in range(n_agents)] 
-
+        observations = states[self.index]
+        actions = tf.unstack(actions)
         with tf.GradientTape() as tape:
             new_actions = self.action(observations)
 
             # update the new batch of action in the joint actions
-            agents_actions[self.index] = new_actions
-            agents_actions = tf.stack(agents_actions)
+            actions[self.index] = new_actions
+            actions = tf.stack(actions)
 
-            # returning to original shape
-            updated_actions = tf.stack([agents_actions[:, i] for i in range(batches)])
-
-            q_value = self.evaluate(states, updated_actions)
+            q_value = self.evaluate(states, actions)
             regularization = tf.reduce_mean(tf.square(new_actions))
             loss = -tf.reduce_mean(q_value)  + 1e-3 * regularization
         optimizer.minimize(loss, self.actor.trainable_variables, tape=tape)
@@ -219,7 +182,7 @@ class Agent:
         pass
 
 class MADDPG:
-    def __init__(self, actor_dims: List[int], critic_dims: int, 
+    def __init__(self, actor_dims: List[int], 
             n_agents, n_actions, alpha=0.01, beta=0.01, chkpt_dir='results/maddpg/'):
         """
         Arguments:
@@ -233,7 +196,7 @@ class MADDPG:
         self.critic_optimizer = tf.keras.optimizers.Adam(beta, clipnorm=0.5)
 
         # all critic nets receive all observations of actors
-        assert sum(actor_dims) == critic_dims
+        critic_dims = sum(actor_dims)
 
         for index, dims in enumerate(actor_dims):
             self.agents.append(Agent(dims, critic_dims, n_agents, n_actions, index))
@@ -255,7 +218,7 @@ class MADDPG:
         """
         where transition is a 5-tuple with:
             (observations, actions, rewards, next_observations, dones)
-        and each observation, actions, etc.. has shape (batch, n_agents, dims)
+        and each observation, actions, etc.. has shape (batch_size, n_agents, dims)
         """
         # TODO: 
         # for states, actions, rewards, new_states, dones in zip(experience):
@@ -269,22 +232,14 @@ class MADDPG:
         new_states = tf.convert_to_tensor(new_states, dtype=tf.float32)
         dones = tf.convert_to_tensor(dones)
 
-        batch_size = states.shape[0]
-
         # pass to each agent's target actor is own batch of observations
-        # obs: shape change (batches, n_agents, dims) -> (n_agents, batches, dims)
-        new_actions = [agent.target_actor(new_states[:, i])[0] 
-            for i, agent in enumerate(self.agents)]
-        new_actions = tf.stack(new_actions)
+        new_actions = [agent.target_actor(new_states[i])[0] for i, agent in enumerate(self.agents)]
+        # new_actions = tf.stack(new_actions)
         
-        # shape change: (n_agents, batches, dims) -> (batches, n_agents, dims)
-        new_actions = [new_actions[:, i] for i in range(batch_size)]
-        new_actions = tf.stack(new_actions)
-
         for i, agent in enumerate(self.agents):
             # Take critic evaluation from new state and taking new actions
             new_critic_value = agent.evaluate_target(new_states, new_actions)
-            target = rewards[:, i, None] + agent.gamma*new_critic_value
+            target = rewards[i] + agent.gamma*new_critic_value
 
             agent.train_critic(states, actions, target, self.critic_optimizer)
             agent.train_actor(states, actions, self.actor_optimizer)
@@ -295,9 +250,9 @@ class MADDPG:
         for agent in self.agents:
             agent.save_checkpoint()
 
-from functions.numpy_functions import *
+
 from environments.gym_env import MultiAgentFunctionEnv
-from collections import deque
+from functions.numpy_functions import *
 
 if __name__ == '__main__':
     BATCH_SIZE = 1024
@@ -316,7 +271,7 @@ if __name__ == '__main__':
 
     env = MultiAgentFunctionEnv(FUNCTION, DIMS, N_AGENTS, True)
 
-    maddpg_agents = MADDPG(ACTOR_DIMS, CRITIC_DIMS, N_AGENTS, N_ACTIONS)
+    maddpg_agents = MADDPG(ACTOR_DIMS, N_AGENTS, N_ACTIONS)
     maddpg_agents.initialize()
 
     memory = MultiAgentReplayBuffer(100_000, N_AGENTS)
@@ -341,7 +296,6 @@ if __name__ == '__main__':
 
     for ep in range(N_EPISODES):
         obs = env.reset()
-        score = [0.0] * N_AGENTS
         done = [False] * N_AGENTS
 
         for step in range(N_STEPS):
@@ -358,16 +312,15 @@ if __name__ == '__main__':
 
             obs = next_obs
 
-            for i in range(len(score)):
-                score[i] += float(reward[i])
-            
             total_steps += 1
             # global_step.assign_add(1)
 
-        best_score = max(best_score, score[0])
+        best_agent_idx = np.argmax(reward)
+        best_agent = reward[best_agent_idx]
+        best_score = max(best_score, best_agent)
 
         if ep % PRINT_INTERVAL == 0 and ep > 0:
-            print(f'episode {ep} best score: {best_score} | current score {score[0]}')
+            print(f'episode {ep} best score: {best_score} | current best {best_agent} by agent {best_agent_idx}')
         
         # if ep % SAVE_INTERVAL == 0:
             # checkpointer.save(global_step)

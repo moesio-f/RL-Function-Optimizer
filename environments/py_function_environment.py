@@ -69,7 +69,8 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
             return self.reset()
 
         self._state = self._state + action
-        self._state = np.clip(self._state, a_min=self._domain.min, a_max=self._domain.max)
+        min, max = self.func.domain
+        self._state = np.clip(self._state, min, max)
 
         self._steps_taken += 1
         if self._steps_taken > 500000:
