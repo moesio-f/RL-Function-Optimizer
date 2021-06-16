@@ -16,19 +16,19 @@ from environments.py_function_environment import PyFunctionEnvironment
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
-num_episodes = 2000  # @param {type:"integer"}
-initial_collect_episodes = 20  # @param {type:"integer"}
-collect_steps_per_iteration = 1  # @param {type:"integer"}
-replay_buffer_capacity = 1000000  # @param {type:"integer"}
-batch_size = 256  # @param {type:"integer"}
-target_update_tau = 0.005  # @param {type:"number"}
-target_update_period = 1  # @param {type:"number"}
+num_episodes = 2000
+initial_collect_episodes = 20
+collect_steps_per_iteration = 1
+replay_buffer_capacity = 1000000
+batch_size = 256
+target_update_tau = 0.005
+target_update_period = 1
 
 # Hiperparametros do Agente
-actor_lr = 3e-4  # @param {type:"number"}
-critic_lr = 3e-4  # @param {type:"number"}
+actor_lr = 3e-4
+critic_lr = 3e-4
 alpha_lr = 3e-4
-discount = 0.99  # @param {type:"number"}
+discount = 0.99
 
 # Networks
 actor_layer_params = [256, 256]
@@ -37,13 +37,13 @@ critic_action_layer_params = None
 critic_joint_layer_params = [256, 256]
 
 # Envs
-steps = 100  # @param {type:"integer"}
-steps_eval = 500  # @param {type:"integer"}
+steps = 250
+steps_eval = 500
 
-dims = 20  # @param {type:"integer"}
-function = Ackley()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+dims = 2
+function = Sphere()
 
-env = PyFunctionEnvironment(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=True)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
@@ -148,7 +148,4 @@ for ep in range(num_episodes):
     print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
 evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='SAC',
-               save_to_file=True)
-
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, name_algorithm='SAC',
                save_to_file=True)

@@ -14,7 +14,7 @@ from environments.py_function_environment import PyFunctionEnvironment
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
-num_episodes = 30000  # @param {type:"integer"}
+num_episodes = 2000  # @param {type:"integer"}
 collect_episodes_per_iteration = 1  # @param {type:"integer"}
 
 # Hiperparametros do Agente
@@ -31,7 +31,7 @@ steps_eval = 500  # @param {type:"integer"}
 dims = 2  # @param {type:"integer"}
 function = Sphere()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
 
-env = PyFunctionEnvironment(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=True)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)

@@ -1,10 +1,3 @@
-"""Importando as funções e o ambiente."""
-
-from functions.numpy_functions import *
-from environments.py_function_environment import PyFunctionEnvironment
-
-"""Imports para Main (Agente, Redes, etc)"""
-
 import tensorflow as tf
 
 from tf_agents.environments.wrappers import TimeLimit
@@ -16,61 +9,59 @@ from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
 from environments.py_env_wrappers import RewardClip, RewardScale
+from functions.numpy_functions import *
+from environments.py_function_environment import PyFunctionEnvironment
 from networks.custom_actor_network import CustomActorNetwork
 from agents.td3_inverting_gradients import Td3AgentInvertingGradients
 from utils.evaluation import evaluate_agent
 
-"""Hiperparâmetros"""
-
-# Hiperparametros de treino
-num_episodes = 1000  # @param {type:"integer"}
-initial_collect_episodes = 15  # @param {type:"integer"}
-collect_steps_per_iteration = 1  # @param {type:"integer"}
+num_episodes = 2000
+initial_collect_episodes = 20
+collect_steps_per_iteration = 1
 
 # Hiperparametros da memória de replay
-buffer_size = 1000000  # @param {type:"integer"}
-batch_size = 256  # @param {type:"number"}
+buffer_size = 1000000
+batch_size = 256
 
 # Hiperparametros do Agente
-actor_lr = 1e-4  # @param {type:"number"}
-critic_lr = 2e-3  # @param {type:"number"}
-tau = 1e-3  # @param {type:"number"}
-actor_update_period = 2  # @param {type:"integer"}
-target_update_period = 2  # @param {type:"integer"}
+actor_lr = 1e-5
+critic_lr = 2e-4
+tau = 1e-4
+actor_update_period = 2
+target_update_period = 2
 
-discount = 0.99  # @param {type:"number"}
-gradient_clipping_norm = 2.5  # @param {type:"number"}
+discount = 0.99
+gradient_clipping_norm = 2.5
 
-exploration_noise_std = 0.55  # @param {type:"number"}
-exploration_noise_std_end = 0.15  # @param {type: "number"}
-exploration_noise_num_episodes = 700  # @param {type: "number"}
-target_policy_noise = 0.2  # @param {type:"number"}
-target_policy_noise_clip = 0.5  # @param {type:"number"}
+exploration_noise_std = 0.5
+exploration_noise_std_end = 0.1
+exploration_noise_num_episodes = 1850
+target_policy_noise = 0.2
+target_policy_noise_clip = 0.5
 
 # Actor Network
-fc_layer_params = [512, 256, 128]  # FNN's do Actor
+fc_layer_params = [256, 256]
 
 # Critic Network
-action_fc_layer_params = []  # FNN's apenas para ações
-observation_fc_layer_params = [512]  # FNN's apenas para observações
-joint_fc_layer_params = [256, 128]  # FNN's depois de concatenar (observação, ação)
+action_fc_layer_params = None  # FNN's apenas para ações
+observation_fc_layer_params = None  # FNN's apenas para observações
+joint_fc_layer_params = [256, 256]  # FNN's depois de concatenar (observação, ação)
 
-"""Criando o Env"""
+# Criando o Env.
 
-# Envs
-steps = 500  # @param {type:"integer"}
-steps_eval = 2000  # @param {type:"integer"}
+steps = 250
+steps_eval = 500
 
-dims = 20  # @param {type:"integer"}
-function = Sphere()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+dims = 2
+function = Sphere()
 
-min_reward = -1e5  # @param {type:"number"}
-max_reward = 1e5  # @param {type:"number"}
-reward_scale = 1.0  # @param {type:"number"}
+min_reward = -1e5
+max_reward = 1e5
+reward_scale = 1.0
 
-env = PyFunctionEnvironment(function=function, dims=dims)
-env = RewardScale(env=env, scale_factor=reward_scale)
-env = RewardClip(env=env, min_reward=min_reward, max_reward=max_reward)
+env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=False)
+# env = RewardScale(env=env, scale_factor=reward_scale)
+# env = RewardClip(env=env, min_reward=min_reward, max_reward=max_reward)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
@@ -85,9 +76,8 @@ time_spec = tf_env_training.time_step_spec()
 # Atualizando a exploração para ser determinada com base nos steps
 exploration_noise_num_steps = round(exploration_noise_num_episodes * steps)
 
-"""Criando as redes"""
+# Criando as redes.
 
-# Creating networks
 actor_network = CustomActorNetwork(input_tensor_spec=obs_spec,
                                    output_tensor_spec=act_spec,
                                    fc_layer_params=fc_layer_params,
@@ -100,9 +90,8 @@ critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
                                activation_fn=tf.keras.activations.relu,
                                output_activation_fn=tf.keras.activations.linear)
 
-"""Criando o agente"""
+# Criando o agente.
 
-# Creating agent
 actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
 critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
 
@@ -129,14 +118,14 @@ agent = Td3AgentInvertingGradients(
 
 agent.initialize()
 
-"""Replay Buffer"""
+# Replay Buffer.
 
 # Replay buffer
 replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(data_spec=agent.collect_data_spec,
                                                                batch_size=tf_env_training.batch_size,
                                                                max_length=buffer_size)
 
-"""Criando o Driver"""
+# Criando o Driver.
 
 # Data Collection (Collect for initial episodes)
 driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
@@ -149,20 +138,21 @@ initial_collect_driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_traini
                                                                observers=[replay_buffer.add_batch],
                                                                num_steps=collect_steps_per_iteration)
 
-"""Convertendo principais funções para tf.function's (Graph Mode)"""
+# Convertendo principais funções para tf.function's (Graph Mode)
 
 initial_collect_driver.run = common.function(initial_collect_driver.run)
 driver.run = common.function(driver.run)
 agent.train = common.function(agent.train)
 
-"""Realizando coleta inicial"""
+# Realizando coleta inicial.
+
 for _ in range(initial_collect_episodes):
     done = False
     while not done:
         time_step, _ = initial_collect_driver.run()
         done = time_step.is_last()
 
-"""Criando o dataset"""
+# Criando o dataset.
 
 # Creating a dataset
 dataset = replay_buffer.as_dataset(
@@ -171,9 +161,8 @@ dataset = replay_buffer.as_dataset(
 
 iterator = iter(dataset)
 
-"""Treinamento do Agente"""
+# Treinamento do Agente
 
-# Training
 agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
@@ -196,20 +185,6 @@ for ep in range(num_episodes):
 
     print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
-"""Realizando os testes do agente depois que sendo chamado"""
+# Realizando os testes do agente (Policy e Collect Policy) para 1 único episódio.
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='TD3-IG',
-               save_to_file=True)
-
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, name_algorithm='TD3-IG',
-               save_to_file=True)
-
-"""Salvando ambas policies e agente"""
-
-from tf_agents.policies.policy_saver import PolicySaver
-
-tf_policy_saver = PolicySaver(agent.policy)
-tf_policy_collect_saver = PolicySaver(agent.collect_policy)
-
-tf_policy_saver.save('policy')
-tf_policy_collect_saver.save('policy_collect')
+evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='TD3-IG', save_to_file=True, verbose=True)

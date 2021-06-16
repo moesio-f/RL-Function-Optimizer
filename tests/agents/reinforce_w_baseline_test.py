@@ -15,26 +15,26 @@ from environments.py_function_environment import PyFunctionEnvironment
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
-num_episodes = 30000  # @param {type:"integer"}
-collect_episodes_per_iteration = 1  # @param {type:"integer"}
+num_episodes = 2000
+collect_episodes_per_iteration = 1
 
 # Hiperparametros do Agente
-actor_lr = 1e-3  # @param {type:"number"}
-value_lr = 1e-3  # @param {type:"number"}
-discount = 1.0  # @param {type:"number"}
+actor_lr = 5e-4
+value_lr = 5e-4
+discount = 1.0
 
 # Networks
-actor_layer_params = [512, 256]
-value_layer_params = [512, 256]
+actor_layer_params = [256, 256]
+value_layer_params = [256, 256]
 
 # Envs
-steps = 100  # @param {type:"integer"}
-steps_eval = 500  # @param {type:"integer"}
+steps = 250
+steps_eval = 500
 
-dims = 2  # @param {type:"integer"}
-function = Sphere()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+dims = 2
+function = Sphere()
 
-env = PyFunctionEnvironment(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=True)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
@@ -83,9 +83,9 @@ driver = dynamic_episode_driver.DynamicEpisodeDriver(env=tf_env_training,
                                                      num_episodes=collect_episodes_per_iteration)
 
 driver.run = common.function(driver.run)
-agent.train = common.function(agent.train)
 
 # Training
+agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
@@ -101,8 +101,5 @@ for ep in range(num_episodes):
 
     replay_buffer.clear()
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='REINFORCE-Baseline',
-               save_to_file=True)
-
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, name_algorithm='REINFORCE-Baseline',
-               save_to_file=True)
+evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='REINFORCE-with-Baseline',
+               save_to_file=False)

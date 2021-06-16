@@ -91,7 +91,7 @@ min_reward = -500  # @param {type:"number"}
 max_reward = 500 # @param {type:"number"}
 reward_scale = 1e-2  # @param {type:"number"}
 
-env = PyFunctionEnvironment(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=True)
 env = RewardClip(env=env, min_reward=min_reward, max_reward=max_reward)
 env = RewardScale(env=env, scale_factor=reward_scale)
 

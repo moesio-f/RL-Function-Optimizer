@@ -17,27 +17,27 @@ from environments.py_function_environment import PyFunctionEnvironment
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
-num_episodes = 200  # @param {type:"integer"}
-collect_trajectories_per_training_iteration = 64  # @param {type:"integer"}
+num_episodes = 2000
+collect_trajectories_per_training_iteration = 64
 
 # Hiperparametros do Agente
-lr = 3e-4  # @param {type:"number"}
-discount = 0.99  # @param {type:"number"}
-num_epochs = 25  # @param {type:"number"}
-train_sequence_length = 125  # @param {type: "integer"}
+lr = 3e-4
+discount = 0.99
+num_epochs = 25
+train_sequence_length = 125
 
 # Networks
 actor_layer_params = [256, 256]
 value_layer_params = [256, 256]
 
 # Envs
-steps = 250  # @param {type:"integer"}
-steps_eval = 500  # @param {type:"integer"}
+steps = 250
+steps_eval = 500
 
-dims = 2  # @param {type:"integer"}
-function = Ackley()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+dims = 2
+function = Sphere()
 
-env = PyFunctionEnvironment(function=function, dims=dims)
+env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=True)
 
 env_training = TimeLimit(env=env, duration=steps)
 env_eval = TimeLimit(env=env, duration=steps_eval)
@@ -90,7 +90,7 @@ agent.train = common.function(agent.train)
 # Training
 agent.train_step_counter.assign(0)
 
-eval_interval = 25
+eval_interval = 5
 num_eval_episodes = 10
 
 
@@ -146,3 +146,5 @@ for ep in range(num_episodes):
     agent.train(experiences)
 
     print('episode = {0}'.format(ep))
+
+evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='TD3-IG', save_to_file=True, verbose=True)
