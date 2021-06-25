@@ -71,7 +71,7 @@ def load_policies_and_functions(functions_descriptions: [FunctionDescription], a
 
     for function_desc in functions_descriptions:
         policy_dir = os.path.join(root_dir, function_desc.function.name)
-        if os.path.exists(policy_dir):
+        if os.path.exists(policy_dir) and function_desc.function.name in num_learning_episodes:
             policy = tf.compat.v2.saved_model.load(policy_dir)
             pairs.append(PolicyFunctionPair(policy=policy,
                                             function_description=function_desc,
@@ -91,8 +91,10 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
         nonlocal steps
         nonlocal episodes
 
+        # Como as policies já estão treinadas, não tem problema remover o clip da ações.
+        # Relembrar que o ambiente não realiza checagem nas ações, apenas os specs que são diferentes.
         env = PyFunctionEnvironment(function=policy_function_pair.function_description.function,
-                                    dims=policy_function_pair.function_description.dims)
+                                    dims=policy_function_pair.function_description.dims, clip_actions=False)
         env = TimeLimit(env=env, duration=steps)
         tf_env = TFPyEnvironment(environment=env)
 
