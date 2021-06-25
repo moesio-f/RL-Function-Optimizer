@@ -1,5 +1,6 @@
 from collections import namedtuple
 from typing import List, Optional, Text
+from utils.render import FunctionDrawer
 
 import numpy as np
 from functions.function import Function
@@ -19,6 +20,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         super().__init__()
         self._rng = default_rng()
         self.func = function
+        self.drawer = FunctionDrawer(function)
         self._dims = dims
 
         self._episode_ended = False
@@ -94,10 +96,12 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         self._last_position = self._state
         return ts.restart(self._state)
 
-    def _render(self):
-        # TODO: Implementar método para renderizar
-        pass
-
+    def render(self, mode: str = 'human'):
+        if self._steps_taken == 0:
+            self.drawer.clear()
+            self.drawer.draw_mesh(alpha=0.4, cmap='coolwarm')
+            self.drawer.scatter(self._state[:2])
+        self.drawer.update_scatter(self._state[:2])
     
     def __initial_state(self) -> np.ndarray:
         min, max = self.func.domain

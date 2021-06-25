@@ -1,3 +1,4 @@
+import os
 from typing import List, Tuple, Union
 
 import tensorflow as tf
@@ -8,7 +9,6 @@ from tf_agents.networks import Sequential
 from tf_agents.networks.value_network import ValueNetwork
 from tf_agents.utils import common
 
-
 class Agent:
     """Single agent of MADDPG algorithm"""
     def __init__(self, 
@@ -16,7 +16,7 @@ class Agent:
                  act_spaces: List[Box], 
                  agent_idx: int, 
                  gamma: float = 0.95, 
-                 tau: float = 0.01, 
+                 tau: float = 1e-2, 
                  actor_fc_params = (256,256),
                  critic_fc_params = (256,256),
                  action_activation_fn = 'linear'):
@@ -38,7 +38,7 @@ class Agent:
         actor_layers.append(tf.keras.layers.Dense(n_actions, action_activation_fn, name='action'))
 
         self.actor = Sequential(actor_layers, obs_specs[agent_idx], self.name+'_actor')
-
+        
         # config critic network
         self.critic = ValueNetwork(
             obs_specs + act_specs, 
@@ -74,51 +74,61 @@ class Agent:
     # train critic based on all states and actions of environment
     def train_critic(self, states: List[tf.Tensor], actions: List[tf.Tensor], target_q: tf.Tensor,
                      optimizer: tf.keras.optimizers.Optimizer):
+        input = states + actions
         with tf.GradientTape() as tape:
-            critic_value = self.critic(states + actions)[0]
+            critic_value = self.critic(input, training=True)[0]
             critic_loss = tf.square(target_q - critic_value)
             loss = tf.reduce_mean(critic_loss)
         optimizer.minimize(loss, self.critic.trainable_variables, tape=tape)
         return critic_loss
-
 
     # input shape for each arg: (n_agents, batch_size, dims) 
     def train_actor(self, states: List[tf.Tensor], actions: List[tf.Tensor], optimizer: tf.keras.optimizers.Optimizer):
         observations = states[self.index]
         actions = tf.unstack(actions)
         with tf.GradientTape() as tape:
-            new_actions = self.action(observations)
+            new_actions = self.actor(observations, training=True)[0]
 
             # update the new batch of action in the joint actions
             if self.use_gumbel:
-                logits = new_actions
-                actions[self.index] = self.gumbel_softmax_sample(logits)
+                actions[self.index] = self.gumbel_softmax_sample(new_actions)
             else:
                 actions[self.index] = new_actions
 
-            actions[self.index] = new_actions
-
             q_value = self.critic(states + actions)[0]
             regularization = tf.reduce_mean(tf.square(new_actions))
-            loss = -tf.reduce_mean(q_value)  + 1e-3 * regularization
+            loss = -tf.math.reduce_mean(q_value)  + 1e-3 * regularization
         optimizer.minimize(loss, self.actor.trainable_variables, tape=tape)
         return loss
 
-    def save_checkpoint(self):
-        pass
+    def save(self, dir: str):
+        for network in (self.actor, self.critic, self.target_actor, self.target_critic):
+            net_path = os.path.join(dir, network.name)
+            np.save(net_path, np.array(network.get_weights(), dtype=list))
+    
+    def load(self, dir: str):
+        for network in (self.actor, self.critic, self.target_actor, self.target_critic):
+            if not network.built:
+                network.create_variables()
+            
+            weights_file = os.path.join(dir, network.name + '.npy')
+            if os.path.exists(weights_file):
+                network.set_weights(np.load(weights_file, allow_pickle=True))
+            else:
+                print('No weights to load in', weights_file, '. Creating weights.')
 
 class MADDPG:
     """MADDPG Algorithm"""
     def __init__(self,
                  obs_spaces: List[Space],
                  act_spaces: List[Space], 
-                 alpha=0.01,
-                 beta=0.01):
+                 alpha=1e-2,
+                 beta=1e-2):
         assert len(obs_spaces) == len(act_spaces)
 
         self.num_agents = len(obs_spaces)
-        self.actor_optimizer = tf.keras.optimizers.Adam(alpha, clipnorm=0.5)
-        self.critic_optimizer = tf.keras.optimizers.Adam(beta, clipnorm=0.5)
+        self.actor_optimizer = tf.keras.optimizers.Adam(alpha) #, clipnorm=0.5)
+        self.critic_optimizer = tf.keras.optimizers.Adam(beta) #, clipnorm=0.5)
 
         self.agents = [Agent(obs_spaces, act_spaces, i) for i in range(self.num_agents)]
 
@@ -147,20 +157,30 @@ class MADDPG:
 
         # pass to each agent's target actor is own batch of observations
         new_actions = [agent.target_actor(new_states[i])[0] for i, agent in enumerate(self.agents)]
-        
+        losses = []
         for i, agent in enumerate(self.agents):
             # Take critic evaluation from new state and taking new actions
             new_critic_value = agent.target_critic(new_states + new_actions)[0]
-            target = rewards[i] + agent.gamma*new_critic_value
+            target = rewards[i][:, None] + agent.gamma*new_critic_value
 
-            agent.train_critic(states, actions, target, self.critic_optimizer)
-            agent.train_actor(states, actions, self.actor_optimizer)
+            critic_loss = agent.train_critic(states, actions, target, self.critic_optimizer)
+            actor_loss = agent.train_actor(states, actions, self.actor_optimizer)
 
             agent.update_targets()
+            losses.append((critic_loss, actor_loss))
+        return losses
+
+    def save(self, directory: str):
+        for agent in self.agents:
+            agent.save(directory)
+    
+    def load(self, directory: str):
+        for agent in self.agents:
+            agent.load(directory)
     
     @staticmethod
-    def softmax_to_argmax(agents: List[Agent], actions: List[np.ndarray], action_spaces: List[Space]):
+    def softmax_to_argmax(actions: List[np.ndarray], action_spaces: List[Space]):
         hard_action_n = []
-        for action, agent, act_space in enumerate(zip(actions, agents, action_spaces)):
+        for action, act_space in zip(actions, action_spaces):
             hard_action_n.append(tf.keras.utils.to_categorical(np.argmax(action), act_space.shape[0]))
         return hard_action_n

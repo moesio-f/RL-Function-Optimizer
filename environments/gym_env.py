@@ -3,7 +3,7 @@ from typing import List
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from functions.function import Domain, Function
-from utils.render.function_drawer import FunctionDrawer
+from utils.render import FunctionDrawer
 import matplotlib.pyplot as plt
 import numpy as np
 import gym
@@ -14,7 +14,7 @@ class MultiAgentFunctionEnv(gym.Env):
         state: list[np.ndarray]
         reseted: bool
         self.func = function
-        # self.drawer = FunctionDrawer(function)
+        self.drawer = FunctionDrawer(function)
         self.dims = dims
         self.n = n_agents
         self.observation_space = [Box(function.domain.min, function.domain.max, (dims,)) for _ in range(n_agents)]
@@ -45,10 +45,15 @@ class MultiAgentFunctionEnv(gym.Env):
         return self.state
     
     def render(self, mode='human'):
-        pass
+        if self.reseted:
+            self.reseted = False
+            self.drawer.clear()
+            self.drawer.draw_mesh(alpha=0.4, cmap='coolwarm')
+
+            self.drawer.scatter(self.state[0][:2])
+        self.drawer.update_scatter(self.state[0][:2])
         # if self.reseted:
         #     self.drawer.draw_mesh()
-        #     self.reseted = False
         # self.drawer.scatter(self.state.T, pause_time=0.1)
 
 
@@ -57,12 +62,14 @@ class SimpleMultiAgentEnv(gym.Env):
         self.dims = dims
         self.n_agents = n_agents
         self.n_landmarks = n_landmarks
-        self.fig, self.ax = plt.subplots()
         self.domain = Domain(-1.0, 1.0)
 
         self.observation_space = [Box(*self.domain, (dims*n_landmarks,)) for _ in range(n_agents)]
         self.action_space = [Box(*self.domain, (dims,)) for _ in range(n_agents)]
-
+        self.fig = None
+    
+    def init_viewer(self):
+        self.fig, self.ax = plt.subplots()
         self.agent_p = self.ax.scatter(0, 0, color='b')
         self.land_p = self.ax.scatter(0, 0, color='r')
         self.ax.set_xlim(self.domain)
@@ -105,6 +112,8 @@ class SimpleMultiAgentEnv(gym.Env):
 
     
     def render(self, mode='human'):
+        if self.fig is None:
+            self.init_viewer()
         agent_p = self.states[0][0]
         land_p = self.landmarks[0][0]
 

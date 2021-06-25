@@ -1,107 +1,58 @@
-from matplotlib import pyplot as plt
+import tensorflow as tf
 import numpy as np
-from tf_agents.policies.policy_saver import PolicySaver
-from utils.multi_agent.replay_bufer import MultiAgentReplayBuffer
+import os, json, gym
+
+from environments.gym_env import MultiAgentFunctionEnv, SimpleMultiAgentEnv
+from functions.numpy_functions import *
+from matplotlib import pyplot as plt
+from utils.multi_agent.replay_buffer import MultiAgentReplayBuffer
 from agents.maddpg import MADDPG
 
+def get_result_dir(folder_name = 'results', index = None):
+    '''Get result directory, if doesn't exist create one
+    Args:
+      index: if None create the next index folder to hold results
+    directory structure:
+      results/1/models/
+      results/2/models/
+      ...
+    Returns: a tuple with root and models directory
+    '''
+    def get_latest_index_dir(dir):
+        index = 1
+        while os.path.exists(os.path.join(dir, str(index))):
+            index += 1
+        return index
 
-from environments.gym_env import MultiAgentFunctionEnv
-from functions.numpy_functions import *
+    if index:
+        root_dir = os.path.join(folder_name, str(index))
+    else:
+        index = get_latest_index_dir(folder_name)
+        root_dir = os.path.join(folder_name, str(index))
+    models_dir = os.path.join(root_dir, 'models')
+    os.makedirs(models_dir, exist_ok=True)
+    return root_dir, models_dir
 
-def main():
-    BATCH_SIZE = 32
-    N_EPISODES = 10_000
-    N_STEPS = 25
-    N_AGENTS = 20
-    DIMS = 20
-    display = False
+# Multi Agent Run
+def run(env: gym.Env, agents: MADDPG, memory: MultiAgentReplayBuffer, batch_size=256, episodes=60_000,
+        steps=25, update_rate=100, display=False, save_interval=200, save_index=None):
 
-    FUNCTION = Sphere()
-    N_ACTIONS = DIMS
+    root_dir, models_dir = get_result_dir(index=save_index)
+    with open(os.path.join(root_dir, 'specs.json'), 'w') as specs_file:
+        specs = {'batch_size': batch_size, 'episodes': episodes, 'steps': steps, 'update_rate': update_rate, 'num_agents': agents.num_agents}
+        json.dump(specs, specs_file, indent=True)
 
-    env = MultiAgentFunctionEnv(FUNCTION, DIMS, N_AGENTS, True)
-
-    maddpg_agents = MADDPG(env.observation_space, env.action_space)
-    maddpg_agents.initialize()
-
-    memory = MultiAgentReplayBuffer(100_000, N_AGENTS)
-    
-    # collecting data
-    # for e in range(32):
-    #     state = env.reset()
-    #     for s in range(32):
-    #         action = np.random.uniform(0., 2., state.shape).astype(np.float32)
-    #         next_state, reward, done, _ = env.step(action)
-    #         memory.add(state, action, reward, next_state, done)
-    #         state = next_state
-
-    PRINT_INTERVAL = 10
-    SAVE_INTERVAL = 128
-    UPDATE_RATE = 10
     total_steps = 0
-    best_score = float('-inf')
+    best_score = -np.inf
 
-    # global_step = tf.compat.v1.train.get_or_create_global_step()
-    # checkpointer = common.Checkpointer("tmp/maddpg", 1, agent0=maddpg_agents.agents[0].actor, global_step=global_step)
-
-    for ep in range(N_EPISODES):
-        obs = env.reset()
-        done = [False] * N_AGENTS
-
-        for step in range(N_STEPS):
-            actions = maddpg_agents.action(obs)
-            next_obs, reward, done, info = env.step(actions)
-
-            if step == N_STEPS -1:
-                done = [True] * N_AGENTS
-            
-            memory.add(obs, actions, reward, next_obs, done)
-
-            if len(memory) > BATCH_SIZE * N_STEPS and not display and total_steps % UPDATE_RATE == 0:
-                maddpg_agents.train(memory.sample(BATCH_SIZE))
-
-            obs = next_obs
-
-            total_steps += 1
-            # global_step.assign_add(1)
-
-        best_agent_idx = np.argmax(reward)
-        best_agent = reward[best_agent_idx]
-        best_score = max(best_score, best_agent)
-
-        if ep % PRINT_INTERVAL == 0 and ep > 0:
-            print(f'episode {ep} best score: {best_score} | current best {best_agent} by agent {best_agent_idx}')
-        
-        # if ep % SAVE_INTERVAL == 0:
-            # checkpointer.save(global_step)
+    if save_index is not None:
+        agents.load(models_dir)
     
-    for e in range(4):
-        state = env.reset()
-        for s in range(32):
-            env.render()
-            action = maddpg_agents.action(state)
-            next_state, reward, done, _ = env.step(action)
-            state = next_state
-
-from environments.gym_env import SimpleMultiAgentEnv, MultiAgentFunctionEnv
-
-def test_simple_env():
-    BATCH_SIZE = 32
-    STEPS = 25
-    UPDATE_RATE = 100
-    display = True
-    total_steps = 0
-    best_score = float('-inf')
-
-    env = SimpleMultiAgentEnv(2)
-    
-    agents = MADDPG(env.observation_space, env.action_space)
-    agents.initialize()
-    memory = MultiAgentReplayBuffer(10000, len(agents))
-
-    for ep in range(10_000):
+    for ep in range(episodes):
         states = env.reset()
-        for step in range(30):
+        current_best = -np.inf
+
+        for step in range(steps):
             if display:
                 plt.pause(0.05)
                 env.render()
@@ -109,13 +60,51 @@ def test_simple_env():
             actions = agents.action(states)
             next_states, rewards, dones, infos = env.step(actions)
             memory.add(states, actions, rewards, next_states, dones)
-            if (len(memory) > BATCH_SIZE * STEPS and total_steps % UPDATE_RATE == 0):
-                agents.train(memory.sample(BATCH_SIZE))
+            states = next_states
+
+            if len(memory) > batch_size * steps and total_steps % update_rate == 0 and not display:
+                experience = memory.sample(batch_size)
+                losses = agents.train(experience)
+
+            current_best = max(current_best, np.max(rewards))
+            best_score = max(best_score, current_best)
+
             total_steps += 1
-            if step % 10 == 0:
-                print('ep:', ep, 'reward:', rewards)
-    print(rewards)
+        print(f'episode {ep} | best score: {best_score:.5f} | current best: {current_best:.5f}')
 
+        if not display and ep % save_interval == 0:
+            agents.save(models_dir)
+    return best_score
 
+class ScriptedAgent:
+    def __init__(self) -> None:
+        self.num_agents = 1
+    def __len__(self):
+        return self.num_agents
+    def action(self, obs):
+        print(obs)
+        return [0.1 * o for o in obs]
+    def initialize(self):
+        pass
+    def load(self):
+        pass
+    def save(self):
+        pass
+    def train(self):
+        pass
+
+def test_env(evaluate = False, save_index = None):
+    env = MultiAgentFunctionEnv(Sphere(), 2, 1)
+    # env = SimpleMultiAgentEnv(2)
+    agents = MADDPG(env.observation_space, env.action_space)
+    # agents = ScriptedAgent()
+    memory = MultiAgentReplayBuffer(1_000_000, len(agents))
+    agents.initialize()
+    if evaluate:
+        best = run(env, agents, memory, episodes=10, display=True, save_index=save_index)
+    else:
+        best = run(env, agents, memory, steps=25, episodes=5_000, update_rate=64, save_index=save_index)
+    print('Best result:', best)
+    
 if __name__ == '__main__':
-    test_simple_env()
+    test_env()
