@@ -20,7 +20,8 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         super().__init__()
         self._rng = default_rng()
         self.func = function
-        self.drawer = FunctionDrawer(function)
+        # TODO(4a5463e): Corrigir possíveis erros no Drawer. (Erro para Griewank e SumSquares)
+        # self.drawer = FunctionDrawer(function)
         self._dims = dims
 
         self._episode_ended = False
@@ -97,11 +98,15 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
         return ts.restart(self._state)
 
     def render(self, mode: str = 'human'):
+        # TODO(4a5463e): Revisar Drawer.
+        """
         if self._steps_taken == 0:
             self.drawer.clear()
             self.drawer.draw_mesh(alpha=0.4, cmap='coolwarm')
             self.drawer.scatter(self._state[:2])
         self.drawer.update_scatter(self._state[:2])
+        """
+        raise NotImplementedError("Not Implemented yet.")
     
     def __initial_state(self) -> np.ndarray:
         min, max = self.func.domain
