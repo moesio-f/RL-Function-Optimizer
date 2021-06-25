@@ -4,7 +4,6 @@ from tf_agents.environments.tf_py_environment import TFPyEnvironment
 import matplotlib.pyplot as plt
 import os
 from environments.py_function_environment import PyFunctionEnvironment
-from environments.py_function_environment_unbounded import PyFunctionEnvironmentUnbounded
 from functions.numpy_functions import *
 
 num_agents = 300
@@ -16,7 +15,8 @@ envs = []
 
 # ---- Creating envs ----
 for _ in range(num_agents):
-    envs.append(TFPyEnvironment(TimeLimit(PyFunctionEnvironmentUnbounded(function=function, dims=dims), duration=num_steps)))
+    envs.append(TFPyEnvironment(TimeLimit(PyFunctionEnvironment(function=function, dims=dims, clip_actions=False),
+                                          duration=num_steps)))
 
 # ---- Loading policies ----
 ROOT_DIR = os.path.dirname(os.getcwd())
