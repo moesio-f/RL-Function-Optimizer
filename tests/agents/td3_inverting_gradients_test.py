@@ -1,6 +1,7 @@
 """TD3-IG agent test on FunctionEnvironment."""
 
 import tensorflow as tf
+import numpy as np
 from tf_agents.agents.ddpg.critic_network import CriticNetwork
 from tf_agents.drivers import dynamic_step_driver
 from tf_agents.environments import tf_py_environment

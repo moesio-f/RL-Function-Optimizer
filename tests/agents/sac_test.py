@@ -1,5 +1,6 @@
 """SAC agent test on FunctionEnvironment."""
 
+import numpy as np
 import tensorflow as tf
 from tf_agents.agents import SacAgent
 from tf_agents.agents.ddpg.critic_network import CriticNetwork

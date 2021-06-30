@@ -3,6 +3,7 @@
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.environments.wrappers import TimeLimit

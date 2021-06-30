@@ -4,6 +4,7 @@ import sys
 import tempfile
 
 import reverb
+import numpy as np
 import tensorflow as tf
 from tf_agents.agents.ddpg.critic_network import CriticNetwork
 from tf_agents.environments.wrappers import TimeLimit

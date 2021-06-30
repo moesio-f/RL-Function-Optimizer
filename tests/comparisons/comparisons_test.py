@@ -5,6 +5,7 @@ import os
 from collections import namedtuple
 
 import matplotlib.pyplot as plt
+import numpy as np
 import tensorflow as tf
 from tf_agents.environments.tf_environment import TFEnvironment
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
