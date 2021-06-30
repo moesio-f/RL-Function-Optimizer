@@ -1,6 +1,9 @@
+"""TFFunctionEnvironment validation tests."""
+
 from tf_agents.policies.random_tf_policy import RandomTFPolicy
+
 from environments.tf_function_environment import TFFunctionEnvironment
-from functions.tensorflow_functions import *
+from functions.tensorflow_functions import Sphere
 
 dims = 20
 function = Sphere()
@@ -12,7 +15,7 @@ policy = RandomTFPolicy(time_step_spec=tf_env.time_step_spec(),
 time_step = tf_env.reset()
 i = 0
 while not time_step.is_last():
-    i += 1
-    action_step = policy.action(time_step)
-    time_step = tf_env.step(action_step.action)
-    print(i)
+  i += 1
+  action_step = policy.action(time_step)
+  time_step = tf_env.step(action_step.action)
+  print(i)

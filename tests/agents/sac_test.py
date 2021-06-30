@@ -1,24 +1,28 @@
-import tensorflow as tf
+"""SAC agent test on FunctionEnvironment."""
 
+import tensorflow as tf
 from tf_agents.agents import SacAgent
 from tf_agents.agents.ddpg.critic_network import CriticNetwork
-from tf_agents.environments.wrappers import TimeLimit
-from tf_agents.environments import tf_py_environment
+from tf_agents.agents.sac.tanh_normal_projection_network import \
+  TanhNormalProjectionNetwork
 from tf_agents.drivers import dynamic_step_driver
-from tf_agents.replay_buffers.tf_uniform_replay_buffer import TFUniformReplayBuffer
-from tf_agents.networks.actor_distribution_network import ActorDistributionNetwork
-from tf_agents.agents.sac.tanh_normal_projection_network import TanhNormalProjectionNetwork
+from tf_agents.environments import tf_py_environment
+from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.networks.actor_distribution_network import \
+  ActorDistributionNetwork
+from tf_agents.replay_buffers.tf_uniform_replay_buffer import \
+  TFUniformReplayBuffer
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
-from functions.numpy_functions import *
 from environments.py_function_environment import PyFunctionEnvironment
+from functions.numpy_functions import Sphere
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
 num_episodes = 2000
 initial_collect_episodes = 20
-collect_steps_per_iteration = 1
+c_steps_per_it = 1
 replay_buffer_capacity = 1000000
 batch_size = 256
 target_update_tau = 0.005
@@ -59,10 +63,12 @@ time_spec = tf_env_training.time_step_spec()
 actor_network = ActorDistributionNetwork(input_tensor_spec=obs_spec,
                                          output_tensor_spec=act_spec,
                                          fc_layer_params=actor_layer_params,
-                                         continuous_projection_net=TanhNormalProjectionNetwork)
+                                         continuous_projection_net=
+                                         TanhNormalProjectionNetwork)
 
 critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
-                               observation_fc_layer_params=critic_observation_layer_params,
+                               observation_fc_layer_params=
+                               critic_observation_layer_params,
                                action_fc_layer_params=critic_action_layer_params,
                                joint_fc_layer_params=critic_joint_layer_params,
                                activation_fn=tf.keras.activations.relu,
@@ -99,53 +105,58 @@ replay_buffer = TFUniformReplayBuffer(data_spec=agent.collect_data_spec,
 
 # Creating a dataset
 dataset = replay_buffer.as_dataset(
-    sample_batch_size=batch_size,
-    num_steps=2).prefetch(64)
+  sample_batch_size=batch_size,
+  num_steps=2).prefetch(64)
 
 iterator = iter(dataset)
 
 initial_driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
-                                                       policy=agent.collect_policy,
-                                                       observers=[replay_buffer.add_batch],
-                                                       num_steps=collect_steps_per_iteration)
+                                                       policy=
+                                                       agent.collect_policy,
+                                                       observers=[
+                                                         replay_buffer.add_batch],
+                                                       num_steps=c_steps_per_it)
 
 driver = dynamic_step_driver.DynamicStepDriver(env=tf_env_training,
                                                policy=agent.collect_policy,
-                                               observers=[replay_buffer.add_batch],
-                                               num_steps=collect_steps_per_iteration)
+                                               observers=[
+                                                 replay_buffer.add_batch],
+                                               num_steps=c_steps_per_it)
 
 driver.run = common.function(driver.run)
 initial_driver.run = common.function(initial_driver.run)
 
 for _ in range(initial_collect_episodes):
-    done = False
-    while not done:
-        time_step, _ = initial_driver.run()
-        done = time_step.is_last()
+  done = False
+  while not done:
+    time_step, _ = initial_driver.run()
+    done = time_step.is_last()
 
 # Training
 agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
-    done = False
-    best_solution = np.finfo(np.float32).max
-    ep_rew = 0.0
-    while not done:
-        time_step, _ = driver.run()
-        experience, unused_info = next(iterator)
-        agent.train(experience)
+  done = False
+  best_solution = np.finfo(np.float32).max
+  ep_rew = 0.0
+  while not done:
+    time_step, _ = driver.run()
+    experience, unused_info = next(iterator)
+    agent.train(experience)
 
-        # Acessando indíce 0 por conta da dimensão extra (batch)
-        obj_value = driver.env.get_info().objective_value[0]
+    # Acessando indíce 0 por conta da dimensão extra (batch)
+    obj_value = driver.env.get_info().objective_value[0]
 
-        if obj_value < best_solution:
-            best_solution = obj_value
+    if obj_value < best_solution:
+      best_solution = obj_value
 
-        ep_rew += time_step.reward
-        done = time_step.is_last()
+    ep_rew += time_step.reward
+    done = time_step.is_last()
 
-    print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
+  print(
+    'episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(
+      ep, best_solution, ep_rew))
 
 evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='SAC',
                save_to_file=True)

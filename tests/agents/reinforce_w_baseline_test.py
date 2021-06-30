@@ -1,17 +1,20 @@
-import tensorflow as tf
+"""REINFORCE with baseline agent test on FunctionEnvironment."""
 
+import tensorflow as tf
 from tf_agents.agents import ReinforceAgent
-from tf_agents.environments.wrappers import TimeLimit
-from tf_agents.environments import tf_py_environment
 from tf_agents.drivers import dynamic_episode_driver
-from tf_agents.replay_buffers.tf_uniform_replay_buffer import TFUniformReplayBuffer
-from tf_agents.networks.actor_distribution_network import ActorDistributionNetwork
+from tf_agents.environments import tf_py_environment
+from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.networks.actor_distribution_network import \
+  ActorDistributionNetwork
 from tf_agents.networks.value_network import ValueNetwork
+from tf_agents.replay_buffers.tf_uniform_replay_buffer import \
+  TFUniformReplayBuffer
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
-from functions.numpy_functions import *
 from environments.py_function_environment import PyFunctionEnvironment
+from functions.numpy_functions import Sphere
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
@@ -73,13 +76,14 @@ agent.initialize()
 
 # Data Collection and Replay Buffer
 replay_buffer = TFUniformReplayBuffer(
-    data_spec=agent.collect_data_spec,
-    batch_size=tf_env_training.batch_size,
-    max_length=steps + 1)
+  data_spec=agent.collect_data_spec,
+  batch_size=tf_env_training.batch_size,
+  max_length=steps + 1)
 
 driver = dynamic_episode_driver.DynamicEpisodeDriver(env=tf_env_training,
                                                      policy=agent.collect_policy,
-                                                     observers=[replay_buffer.add_batch],
+                                                     observers=[
+                                                       replay_buffer.add_batch],
                                                      num_episodes=collect_episodes_per_iteration)
 
 driver.run = common.function(driver.run)
@@ -89,17 +93,20 @@ agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
-    driver.run()
-    experience = replay_buffer.gather_all()
-    agent.train(experience)
+  driver.run()
+  experience = replay_buffer.gather_all()
+  agent.train(experience)
 
-    observations = tf.unstack(experience.observation[0])
-    rewards = tf.unstack(experience.reward[0])
-    best_solution = min([function(x.numpy()) for x in observations])
-    ep_rew = sum(rewards)
-    print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
+  observations = tf.unstack(experience.observation[0])
+  rewards = tf.unstack(experience.reward[0])
+  best_solution = min([function(x.numpy()) for x in observations])
+  ep_rew = sum(rewards)
+  print(
+    'episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(
+      ep, best_solution, ep_rew))
 
-    replay_buffer.clear()
+  replay_buffer.clear()
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='REINFORCE-with-Baseline',
+evaluate_agent(tf_env_eval, agent.policy, function, dims,
+               name_algorithm='REINFORCE-with-Baseline',
                save_to_file=False)

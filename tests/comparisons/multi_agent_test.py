@@ -1,10 +1,14 @@
-import tensorflow as tf
-from tf_agents.environments.wrappers import TimeLimit
-from tf_agents.environments.tf_py_environment import TFPyEnvironment
-import matplotlib.pyplot as plt
+"""Multiple trained agents tests."""
+
 import os
+
+import matplotlib.pyplot as plt
+import tensorflow as tf
+from tf_agents.environments.tf_py_environment import TFPyEnvironment
+from tf_agents.environments.wrappers import TimeLimit
+
 from environments.py_function_environment import PyFunctionEnvironment
-from functions.numpy_functions import *
+from functions.numpy_functions import Sphere
 
 num_agents = 300
 num_steps = 2000
@@ -15,8 +19,9 @@ envs = []
 
 # ---- Creating envs ----
 for _ in range(num_agents):
-    envs.append(TFPyEnvironment(TimeLimit(PyFunctionEnvironment(function=function, dims=dims, clip_actions=False),
-                                          duration=num_steps)))
+  envs.append(TFPyEnvironment(TimeLimit(
+    PyFunctionEnvironment(function=function, dims=dims, clip_actions=False),
+    duration=num_steps)))
 
 # ---- Loading policies ----
 ROOT_DIR = os.path.dirname(os.getcwd())
@@ -39,32 +44,32 @@ policy = saved_pol
 time_steps = []
 
 for env in envs:
-    time_steps.append(env.reset())
-    pos = time_steps[-1].observation.numpy()[0]
-    obj_value = function(pos)
-    if obj_value < best_solution:
-        best_solution = obj_value
-        best_solution_pos = pos
+  time_steps.append(env.reset())
+  pos = time_steps[-1].observation.numpy()[0]
+  obj_value = function(pos)
+  if obj_value < best_solution:
+    best_solution = obj_value
+    best_solution_pos = pos
 
 best_solution_at_it.append(best_solution)
 
 all_done = False
 step = 0
 while not all_done:
-    dones = []
-    for i, env in enumerate(envs):
-        if not time_steps[i].is_last():
-            action_step = policy.action(time_steps[i])
-            time_steps[i] = env.step(action_step.action)
-            obj_value = -time_steps[i].reward.numpy()[0]
-            if obj_value < best_solution:
-                best_solution = obj_value
-                best_solution_pos = time_steps[i].observation.numpy()[0]
-        dones.append(time_steps[i].is_last())
-    all_done = np.all(dones)
-    best_solution_at_it.append(best_solution)
-    step += 1
-    print(step)
+  dones = []
+  for i, env in enumerate(envs):
+    if not time_steps[i].is_last():
+      action_step = policy.action(time_steps[i])
+      time_steps[i] = env.step(action_step.action)
+      obj_value = -time_steps[i].reward.numpy()[0]
+      if obj_value < best_solution:
+        best_solution = obj_value
+        best_solution_pos = time_steps[i].observation.numpy()[0]
+    dones.append(time_steps[i].is_last())
+  all_done = np.all(dones)
+  best_solution_at_it.append(best_solution)
+  step += 1
+  print(step)
 
 fig, ax = plt.subplots(figsize=(18.0, 10.0,))
 ax.plot(range(len(best_solution_at_it)), best_solution_at_it,
@@ -88,6 +93,7 @@ ax.legend()
 ax.grid()
 
 plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-plt.savefig(fname='{0}-{1}dims-{2}.png'.format(function.name, dims, name_policy),
-            bbox_inches='tight')
+plt.savefig(
+  fname='{0}-{1}dims-{2}.png'.format(function.name, dims, name_policy),
+  bbox_inches='tight')
 plt.show()

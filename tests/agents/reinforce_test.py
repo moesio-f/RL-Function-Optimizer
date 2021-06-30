@@ -1,35 +1,38 @@
-import tensorflow as tf
+"""REINFORCE agent test on FunctionEnvironment."""
 
+import tensorflow as tf
 from tf_agents.agents import ReinforceAgent
-from tf_agents.environments.wrappers import TimeLimit
-from tf_agents.environments import tf_py_environment
 from tf_agents.drivers import dynamic_episode_driver
-from tf_agents.replay_buffers.tf_uniform_replay_buffer import TFUniformReplayBuffer
-from tf_agents.networks.actor_distribution_network import ActorDistributionNetwork
+from tf_agents.environments import tf_py_environment
+from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.networks.actor_distribution_network import \
+  ActorDistributionNetwork
+from tf_agents.replay_buffers.tf_uniform_replay_buffer import \
+  TFUniformReplayBuffer
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
-from functions.numpy_functions import *
 from environments.py_function_environment import PyFunctionEnvironment
+from functions.numpy_functions import Sphere
 from utils.evaluation import evaluate_agent
 
 # Hiperparametros de treino
-num_episodes = 2000  # @param {type:"integer"}
-collect_episodes_per_iteration = 1  # @param {type:"integer"}
+num_episodes = 2000
+collect_episodes_per_iteration = 1
 
 # Hiperparametros do Agente
-actor_lr = 1e-3  # @param {type:"number"}
-discount = 1.0  # @param {type:"number"}
+actor_lr = 1e-3
+discount = 1.0
 
 # Actor Network
 fc_layer_params = [512, 512, 256]
 
 # Envs
-steps = 100  # @param {type:"integer"}
-steps_eval = 500  # @param {type:"integer"}
+steps = 100
+steps_eval = 500
 
-dims = 2  # @param {type:"integer"}
-function = Sphere()  # @param ["Sphere()", "Ackley()", "Griewank()", "Levy()", "Zakharov()", "RotatedHyperEllipsoid()", "Rosenbrock()"]{type: "raw"}
+dims = 2
+function = Sphere()
 
 env = PyFunctionEnvironment(function=function, dims=dims, clip_actions=True)
 
@@ -65,13 +68,14 @@ agent.initialize()
 
 # Data Collection and Replay Buffer
 replay_buffer = TFUniformReplayBuffer(
-    data_spec=agent.collect_data_spec,
-    batch_size=tf_env_training.batch_size,
-    max_length=steps + 5)
+  data_spec=agent.collect_data_spec,
+  batch_size=tf_env_training.batch_size,
+  max_length=steps + 5)
 
 driver = dynamic_episode_driver.DynamicEpisodeDriver(env=tf_env_training,
                                                      policy=agent.collect_policy,
-                                                     observers=[replay_buffer.add_batch],
+                                                     observers=[
+                                                       replay_buffer.add_batch],
                                                      num_episodes=collect_episodes_per_iteration)
 
 driver.run = common.function(driver.run)
@@ -81,20 +85,24 @@ agent.train = common.function(agent.train)
 agent.train_step_counter.assign(0)
 
 for ep in range(num_episodes):
-    driver.run()
-    experience = replay_buffer.gather_all()
-    agent.train(experience)
+  driver.run()
+  experience = replay_buffer.gather_all()
+  agent.train(experience)
 
-    observations = tf.unstack(experience.observation[0])
-    rewards = tf.unstack(experience.reward[0])
-    best_solution = min([function(x.numpy()) for x in observations])
-    ep_rew = sum(rewards)
-    print('episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(ep, best_solution, ep_rew))
+  observations = tf.unstack(experience.observation[0])
+  rewards = tf.unstack(experience.reward[0])
+  best_solution = min([function(x.numpy()) for x in observations])
+  ep_rew = sum(rewards)
+  print(
+    'episode = {0} Best solution on episode: {1} Return on episode: {2}'.format(
+      ep, best_solution, ep_rew))
 
-    replay_buffer.clear()
+  replay_buffer.clear()
 
-evaluate_agent(tf_env_eval, agent.policy, function, dims, name_algorithm='REINFORCE',
+evaluate_agent(tf_env_eval, agent.policy, function, dims,
+               name_algorithm='REINFORCE',
                save_to_file=True)
 
-evaluate_agent(tf_env_eval, agent.collect_policy, function, dims, name_algorithm='REINFORCE',
+evaluate_agent(tf_env_eval, agent.collect_policy, function, dims,
+               name_algorithm='REINFORCE',
                save_to_file=True)

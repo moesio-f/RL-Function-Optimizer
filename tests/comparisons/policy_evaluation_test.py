@@ -1,9 +1,13 @@
+"""Policy evaluation tests."""
+
 import os
+
 import tensorflow as tf
 from tf_agents.environments.tf_py_environment import TFPyEnvironment
 from tf_agents.environments.wrappers import TimeLimit
+
 from environments.py_function_environment import PyFunctionEnvironment
-from functions.numpy_functions import *
+from functions.numpy_functions import Zakharov
 from utils.evaluation import evaluate_agent
 
 ROOT_DIR = os.path.join(os.getcwd(), "../models")
