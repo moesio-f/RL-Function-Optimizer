@@ -1,15 +1,13 @@
 """Py environments wrappers."""
 
 import numpy as np
-from tf_agents.environments.py_environment import PyEnvironment
-from tf_agents.environments.wrappers import PyEnvironmentBaseWrapper
-
-__all__ = ['RewardClip', 'RewardScale']
+from tf_agents.environments import py_environment
+from tf_agents.environments import wrappers
 
 
-class RewardClip(PyEnvironmentBaseWrapper):
+class RewardClip(wrappers.PyEnvironmentBaseWrapper):
   """Clips rewards in a given interval [a,b]."""
-  def __init__(self, env: PyEnvironment, min_reward, max_reward):
+  def __init__(self, env: py_environment.PyEnvironment, min_reward, max_reward):
     super().__init__(env)
 
     if min_reward > max_reward:
@@ -34,9 +32,9 @@ class RewardClip(PyEnvironmentBaseWrapper):
     return time_step
 
 
-class RewardScale(PyEnvironmentBaseWrapper):
+class RewardScale(wrappers.PyEnvironmentBaseWrapper):
   """Multiplies rewards by a scalar."""
-  def __init__(self, env: PyEnvironment, scale_factor):
+  def __init__(self, env: py_environment.PyEnvironment, scale_factor):
     super().__init__(env)
 
     self._scale_factor = np.array(scale_factor, dtype=np.float32)

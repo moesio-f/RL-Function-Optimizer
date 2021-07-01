@@ -7,7 +7,7 @@ from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.utils import common
 
-from environments.py_function_environment import FunctionEnvironmentInfo
+from environments import py_function_environment
 from functions.function import Function
 
 FIRST = ts.StepType.FIRST
@@ -18,11 +18,10 @@ MAX_STEPS = 50000
 
 class TFFunctionEnvironment(tf_environment.TFEnvironment):
   """Single-agent function environment."""
-
   def __init__(self, function: Function, dims, clip_actions: bool = False):
     self._function = function
-    self._domain_min = tf.cast(function.domain.min, dtype=tf.float32)
-    self._domain_max = tf.cast(function.domain.max, dtype=tf.float32)
+    self._domain_min = tf.cast(function.domain.min, tf.float32)
+    self._domain_max = tf.cast(function.domain.max, tf.float32)
     self._dims = dims
 
     action_spec = specs.BoundedTensorSpec(shape=(self._dims,), dtype=tf.float32,
@@ -65,8 +64,6 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                                                  dtype=tf.float32)
 
   def _current_time_step(self) -> ts.TimeStep:
-    # Convert's states to a TimeStep()
-
     state = self._state.value()
 
     def first():
@@ -94,7 +91,6 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                        observation=state)
 
   def _reset(self) -> ts.TimeStep:
-    # Resets the the environments variables
     reset_ended = self._episode_ended.assign(value=False)
     reset_steps = self._steps_taken.assign(value=0)
 
@@ -112,9 +108,6 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
     return time_step
 
   def _step(self, action):
-    # Updates states and return self.current_time_step()
-    # It also resets the environment when needed
-
     action = tf.convert_to_tensor(value=action)
 
     def take_step():
@@ -146,12 +139,13 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
   @autograph.do_not_convert()
   def get_info(self, to_numpy=False):
     if to_numpy:
-      return FunctionEnvironmentInfo(
+      return py_function_environment.FunctionEnvironmentInfo(
         position=self._last_position.value().numpy(),
         objective_value=self._last_objective_value.value().numpy())
 
-    return FunctionEnvironmentInfo(position=self._last_position,
-                                   objective_value=self._last_objective_value)
+    return py_function_environment.FunctionEnvironmentInfo(
+      position=self._last_position,
+      objective_value=self._last_objective_value)
 
   def render(self):
     raise ValueError('Environment does not support render yet.')

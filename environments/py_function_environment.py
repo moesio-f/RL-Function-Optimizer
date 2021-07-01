@@ -12,6 +12,8 @@ from tf_agents.typing import types
 
 from functions.function import Function
 
+MAX_STEPS = 50000
+
 
 class FunctionEnvironmentInfo(
   namedtuple('FunctionEnvironmentInfo', ('position', 'objective_value'))):
@@ -30,14 +32,13 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
   Every new state (position), s + a, is in the domain (clipped when needed).
   Actions can be restricted: ai in [min, max].
   """
-
   def __init__(self, function: Function, dims,
                clip_actions: bool = False) -> None:
     super().__init__()
     self._rng = default_rng()
     self.func = function
-    # TODO(4a5463e): Corrigir possíveis erros no Drawer. (Erro para Griewank e SumSquares)
-    # self.drawer = FunctionDrawer(function)
+    # TODO(4a5463e): Corrigir possíveis erros no Drawer. (Erro para Griewank
+    #  e SumSquares) self.drawer = FunctionDrawer(function)
     self._dims = dims
 
     self._episode_ended = False
@@ -92,7 +93,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     self._state = np.clip(self._state, domain_min, domain_max)
 
     self._steps_taken += 1
-    if self._steps_taken > 500000:
+    if self._steps_taken > MAX_STEPS:
       self._episode_ended = True
 
     obj_value = self.func(self._state)
@@ -133,6 +134,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
 
 
 class MultiAgentFunctionEnv(py_environment.PyEnvironment):
+  """Multi-agent function environment."""
   def __init__(self,
                function: Function,
                dims: int,
