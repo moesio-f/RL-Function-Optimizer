@@ -1,36 +1,10 @@
-# coding=utf-8
-# Copyright 2020 The TF-Agents Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Taken from: https://github.com/tensorflow/agents/blob/v0.7.1/tf_agents/agents/td3/td3_agent.py
-# Commit c6ce6d6b73792c36d3fd33d109668b08fa12c784 | 7 Dec 2020
-
 """Twin Delayed Deep Deterministic policy gradient (TD3) with Inverting Gradients
 (https://arxiv.org/abs/1511.04143) agent.
 
 "Addressing Function Approximation Error in Actor-Critic Methods"
-by Fujimoto et al.
-
-For the full paper, see https://arxiv.org/abs/1802.09477.
+by Fujimoto et al. (https://arxiv.org/abs/1802.09477)
 """
 
-from __future__ import absolute_import
-from __future__ import division
-# Using Type Annotations.
-from __future__ import print_function
-
-import collections
 from typing import Optional, Text
 
 import gin
@@ -47,17 +21,14 @@ from tf_agents.utils import common
 from tf_agents.utils import eager_utils
 from tf_agents.utils import nest_utils
 from tf_agents.utils import object_identity
+from tf_agents.agents.td3 import td3_agent
 
-from policies.gaussian_scale_decay_policy import GaussianLinearScaleDecayPolicy
-
-
-class Td3Info(collections.namedtuple('Td3Info', ('actor_loss', 'critic_loss'))):
-  pass
+from policies import gaussian_scale_decay_policy
 
 
 @gin.configurable
 class Td3AgentInvertingGradients(tf_agent.TFAgent):
-  """A TD3 Agent."""
+  """A TD3 Inverting Gradients Agent."""
 
   def __init__(self,
                time_step_spec: ts.TimeStep,
@@ -88,58 +59,63 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
                name: Text = None):
     """Creates a Td3Agent Agent.
 
-Args:
-  time_step_spec: A `TimeStep` spec of the expected time_steps.
-  action_spec: A nest of BoundedTensorSpec representing the actions.
-  actor_network: A tf_agents.network.Network to be used by the agent. The
-    network will be called with call(observation, step_type).
-  critic_network: A tf_agents.network.Network to be used by the agent. The
-    network will be called with call(observation, action, step_type).
-  actor_optimizer: The default optimizer to use for the actor network.
-  critic_optimizer: The default optimizer to use for the critic network.
-  exp_noise_std: Scale factor on exploration policy noise.
-  critic_network_2: (Optional.)  A `tf_agents.network.Network` to be used as
-    the second critic network during Q learning.  The weights from
-    `critic_network` are copied if this is not provided.
-  target_actor_network: (Optional.)  A `tf_agents.network.Network` to be
-    used as the target actor network during Q learning. Every
-    `target_update_period` train steps, the weights from `actor_network` are
-    copied (possibly withsmoothing via `target_update_tau`) to `
-    target_actor_network`.  If `target_actor_network` is not provided, it is
-    created by making a copy of `actor_network`, which initializes a new
-    network with the same structure and its own layers and weights.
-    Performing a `Network.copy` does not work when the network instance
-    already has trainable parameters (e.g., has already been built, or when
-    the network is sharing layers with another).  In these cases, it is up
-    to you to build a copy having weights that are not shared with the
-    original `actor_network`, so that this can be used as a target network.
-    If you provide a `target_actor_network` that shares any weights with
-    `actor_network`, a warning will be logged but no exception is thrown.
-  target_critic_network: (Optional.) Similar network as target_actor_network
-    but for the critic_network. See documentation for target_actor_network.
-  target_critic_network_2: (Optional.) Similar network as
-    target_actor_network but for the critic_network_2. See documentation for
-    target_actor_network. Will only be used if 'critic_network_2' is also
-    specified.
-  target_update_tau: Factor for soft update of the target networks.
-  target_update_period: Period for soft update of the target networks.
-  actor_update_period: Period for the optimization step on actor network.
-  td_errors_loss_fn:  A function for computing the TD errors loss. If None,
-    a default value of elementwise huber_loss is used.
-  gamma: A discount factor for future rewards.
-  reward_scale_factor: Multiplicative scale for the reward.
-  target_policy_noise: Scale factor on target action noise
-  target_policy_noise_clip: Value to clip noise.
-  gradient_clipping: Norm length to clip gradients.
-  debug_summaries: A bool to gather debug summaries.
-  summarize_grads_and_vars: If True, gradient and network variable summaries
-    will be written during training.
-  train_step_counter: An optional counter to increment every time the train
-    op is run.  Defaults to the global_step.
-  name: The name of this agent. All variables in this module will fall
-    under that name. Defaults to the class name.
-"""
-    tf.Module.__init__(self, name=name)
+    Args:
+      time_step_spec: A `TimeStep` spec of the expected time_steps.
+      action_spec: A nest of BoundedTensorSpec representing the actions.
+      actor_network: A tf_agents.network.Network to be used by the agent. The
+        network will be called with call(observation, step_type).
+      critic_network: A tf_agents.network.Network to be used by the agent. The
+        network will be called with call(observation, action, step_type).
+      actor_optimizer: The default optimizer to use for the actor network.
+      critic_optimizer: The default optimizer to use for the critic network.
+      exp_noise_std: Initial scale factor on exploration policy noise.
+      exp_noise_std_end: Final scale factor on exploration policy noise.
+      exp_noise_steps: Number of steps until the exploration policy noise factor
+        reaches the exp_noise_std_end.
+      critic_network_2: (Optional.)  A `tf_agents.network.Network` to be used as
+        the second critic network during Q learning.  The weights from
+        `critic_network` are copied if this is not provided.
+      target_actor_network: (Optional.)  A `tf_agents.network.Network` to be
+        used as the target actor network during Q learning. Every
+        `target_update_period` train steps, the weights from `actor_network` are
+        copied (possibly withsmoothing via `target_update_tau`) to `
+        target_actor_network`.  If `target_actor_network` is not provided, it is
+        created by making a copy of `actor_network`, which initializes a new
+        network with the same structure and its own layers and weights.
+        Performing a `Network.copy` does not work when the network instance
+        already has trainable parameters (e.g., has already been built, or when
+        the network is sharing layers with another).  In these cases, it is up
+        to you to build a copy having weights that are not shared with the
+        original `actor_network`, so that this can be used as a target network.
+        If you provide a `target_actor_network` that shares any weights with
+        `actor_network`, a warning will be logged but no exception is thrown.
+      target_critic_network: (Optional.) Similar network as target_actor_network
+        but for the critic_network. See documentation for target_actor_network.
+      target_critic_network_2: (Optional.) Similar network as
+        target_actor_network but for the critic_network_2. See documentation for
+        target_actor_network. Will only be used if 'critic_network_2' is also
+        specified.
+      target_update_tau: Factor for soft update of the target networks.
+      target_update_period: Period for soft update of the target networks.
+      actor_update_period: Period for the optimization step on actor network.
+      td_errors_loss_fn:  A function for computing the TD errors loss. If None,
+        a default value of elementwise huber_loss is used.
+      gamma: A discount factor for future rewards.
+      reward_scale_factor: Multiplicative scale for the reward.
+      target_policy_noise: Scale factor on target action noise
+      target_policy_noise_clip: Value to clip noise.
+      gradient_clipping: Norm length to clip gradients.
+      debug_summaries: A bool to gather debug summaries.
+      summarize_grads_and_vars: If True, gradient and network variable summaries
+        will be written during training.
+      train_step_counter: An optional counter to increment every time the train
+        op is run.  Defaults to the global_step.
+      name: The name of this agent. All variables in this module will fall
+        under that name. Defaults to the class name.
+    """
+    # pylint: disable=non-parent-init-called
+    tf.Module.__init__(self,
+                       name=name)
     self._actor_network = actor_network
     actor_network.create_variables()
     if target_actor_network:
@@ -156,11 +132,6 @@ Args:
                                                    target_critic_network,
                                                    'TargetCriticNetwork1'))
 
-    self._high_obs = tf.constant(
-      self._critic_network_1.input_tensor_spec[0].maximum, dtype=tf.float32)
-    self._low_obs = tf.constant(
-      self._critic_network_1.input_tensor_spec[0].minimum, dtype=tf.float32)
-
     if critic_network_2 is not None:
       self._critic_network_2 = critic_network_2
     else:
@@ -174,6 +145,11 @@ Args:
       common.maybe_copy_target_network_with_checks(self._critic_network_2,
                                                    target_critic_network_2,
                                                    'TargetCriticNetwork2'))
+
+    self._high_obs = tf.constant(
+      self._critic_network_1.input_tensor_spec[0].maximum, dtype=tf.float32)
+    self._low_obs = tf.constant(
+      self._critic_network_1.input_tensor_spec[0].minimum, dtype=tf.float32)
 
     self._actor_optimizer = actor_optimizer
     self._critic_optimizer = critic_optimizer
@@ -210,11 +186,12 @@ Args:
         scale=self._exp_noise_std,
         clip=True)
     else:
-      collect_policy = GaussianLinearScaleDecayPolicy(collect_policy,
-                                                      self._exp_noise_std,
-                                                      self._exp_noise_std_end,
-                                                      self._exp_noise_steps,
-                                                      clip=True)
+      collect_policy = gaussian_scale_decay_policy. \
+        GaussianLinearScaleDecayPolicy(collect_policy,
+                                       self._exp_noise_std,
+                                       self._exp_noise_std_end,
+                                       self._exp_noise_steps,
+                                       clip=True)
 
     train_sequence_length = 2 if not self._actor_network.state_spec else None
     super().__init__(
@@ -330,7 +307,7 @@ Args:
 
     # We only optimize the actor every actor_update_period training steps.
     def optimize_actor():
-      actor_grads = self.actor_grads(time_steps, training=True)
+      actor_grads = self.actor_grads(time_steps, weights=weights, training=True)
       return self._apply_gradients(actor_grads, trainable_actor_variables,
                                    self._actor_optimizer)
 
@@ -341,13 +318,13 @@ Args:
     self.train_step_counter.assign_add(1)
     self._update_target()
 
-    # TODO(b/124382360): Compute per element TD loss and return in loss_info.
     total_loss = actor_loss + critic_loss
 
     return tf_agent.LossInfo(total_loss,
-                             Td3Info(actor_loss, critic_loss))
+                             td3_agent.Td3Info(actor_loss, critic_loss))
 
   def _apply_gradients(self, gradients, variables, optimizer):
+    # pylint: disable=missing-docstring
     # Tuple is used for py3, where zip is a generator producing values once.
     grads_and_vars = tuple(zip(gradients, variables))
     if self._gradient_clipping is not None:
@@ -389,10 +366,11 @@ Args:
       # Add gaussian noise to each action before computing target q values
       def add_noise_to_action(action):  # pylint: disable=missing-docstring
         dist = tfp.distributions.Normal(loc=tf.zeros_like(action),
-                                        scale=self._target_policy_noise * \
-                                              tf.ones_like(action))
+                                        scale=self._target_policy_noise
+                                              * tf.ones_like(action))
         noise = dist.sample()
-        noise = tf.clip_by_value(noise, -self._target_policy_noise_clip,
+        noise = tf.clip_by_value(noise,
+                                 -self._target_policy_noise_clip,
                                  self._target_policy_noise_clip)
         return action + noise
 
@@ -495,48 +473,6 @@ Args:
 
       return tf.reduce_mean(input_tensor=critic_loss)
 
-  def actor_grads(self, time_steps: ts.TimeStep,
-                  training: bool = False):
-    """Computes the actor_grads for TD3 training (Applies
-    the Inverting Gradient technique).
-
-        Args:
-          time_steps: A batch of timesteps.
-          training: Whether the grad is being used for training.
-        Returns:
-          actor_grads: Gradients of the actor network.
-        """
-    actions_upper_bounds = self._high_obs - time_steps.observation
-    actions_lower_bounds = self._low_obs - time_steps.observation
-    actions_bounds_delta = actions_upper_bounds - actions_lower_bounds
-    batch_size = tf.constant(time_steps.observation.shape[0], dtype=tf.float32)
-
-    trainable_actor_variables = self._actor_network.trainable_variables
-    with tf.GradientTape(watch_accessed_variables=False) as outer_tape:
-      assert trainable_actor_variables, ('No trainable actor variables to '
-                                         'optimize.')
-      outer_tape.watch(trainable_actor_variables)
-      actions, _ = self._actor_network(time_steps.observation,
-                                       time_steps.step_type,
-                                       training=training)
-      with tf.GradientTape(watch_accessed_variables=False) as inner_tape:
-        inner_tape.watch(actions)
-        q_values, _ = self._critic_network_1((time_steps.observation, actions),
-                                             time_steps.step_type,
-                                             training=False)
-      dq_da = inner_tape.gradient(q_values, actions)
-      mul_consts = tf.where(
-        tf.math.greater(dq_da, tf.constant([0.], dtype=tf.float32)),
-        actions_upper_bounds - actions, actions - actions_lower_bounds)
-      mul_consts = tf.divide(mul_consts, actions_bounds_delta)
-      adjusted_dq_da = tf.math.multiply(dq_da, mul_consts)
-      da_dmu = outer_tape.gradient(actions, trainable_actor_variables,
-                                   output_gradients=adjusted_dq_da)
-      da_dmu = [tf.math.divide(tf.math.negative(grad), batch_size) for grad in
-                da_dmu]
-
-    return da_dmu
-
   def actor_loss(self,
                  time_steps: ts.TimeStep,
                  weights: types.Tensor = None,
@@ -548,7 +484,6 @@ Args:
       weights: Optional scalar or element-wise (per-batch-entry) importance
         weights.
       training: Whether this loss is being used for training.
-      # TODO(b/124383618): Add an action norm regularizer.
     Returns:
       actor_loss: A scalar actor loss.
     """
@@ -573,3 +508,54 @@ Args:
           name='actor_loss', data=actor_loss, step=self.train_step_counter)
 
     return actor_loss
+
+  def actor_grads(self, time_steps: ts.TimeStep,
+                  weights: types.Tensor = None,
+                  training: bool = False):
+    """Computes the actor_grads for TD3 training (Applies
+    the Inverting Gradient technique).
+
+        Args:
+          time_steps: A batch of timesteps.
+          weights: Optional scalar or element-wise (per-batch-entry) importance
+            weights.
+          training: Whether the grad is being used for training.
+        Returns:
+          actor_grads: Gradients of the actor network.
+        """
+    with tf.name_scope('actor_grads'):
+      actions_upper_bounds = self._high_obs - time_steps.observation
+      actions_lower_bounds = self._low_obs - time_steps.observation
+      actions_bounds_delta = actions_upper_bounds - actions_lower_bounds
+      batch_size = tf.constant(time_steps.observation.shape[0],
+                               dtype=tf.float32)
+
+      trainable_actor_variables = self._actor_network.trainable_variables
+      with tf.GradientTape(watch_accessed_variables=False) as outer_tape:
+        assert trainable_actor_variables, ('No trainable actor variables to '
+                                           'optimize.')
+        outer_tape.watch(trainable_actor_variables)
+        actions, _ = self._actor_network(time_steps.observation,
+                                         time_steps.step_type,
+                                         training=training)
+        with tf.GradientTape(watch_accessed_variables=False) as inner_tape:
+          inner_tape.watch(actions)
+          q_values, _ = self._critic_network_1((time_steps.observation,
+                                                actions),
+                                               time_steps.step_type,
+                                               training=False)
+        dq_da = inner_tape.gradient(q_values, actions, output_gradients=weights)
+        mul_consts = tf.where(
+          tf.math.greater(dq_da, tf.constant([0.], dtype=tf.float32)),
+          actions_upper_bounds - actions, actions - actions_lower_bounds)
+        mul_consts = tf.divide(mul_consts, actions_bounds_delta)
+        adjusted_dq_da = tf.math.multiply(dq_da, mul_consts)
+      da_dmu = outer_tape.gradient(actions, trainable_actor_variables,
+                                   output_gradients=adjusted_dq_da)
+      da_dmu = [tf.math.divide(tf.math.negative(grad), batch_size) for grad in
+                da_dmu]
+
+      for grad_tensor in da_dmu:
+        tf.debugging.check_numerics(grad_tensor, 'Actor grad is inf or nan.')
+
+    return da_dmu

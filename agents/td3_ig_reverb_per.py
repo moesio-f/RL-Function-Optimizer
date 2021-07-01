@@ -13,27 +13,26 @@ import gin
 import tensorflow as tf  # pylint: disable=g-explicit-tensorflow-version-import
 import tensorflow_probability as tfp
 from tf_agents.agents import tf_agent
-from tf_agents.agents.tf_agent import LossInfo
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 from tf_agents.utils import nest_utils
 from tf_agents.utils import object_identity
 
-from agents.td3_inverting_gradients import Td3AgentInvertingGradients
+from agents import td3_inverting_gradients
 
 
-class Td3InfoPlusTdError(
-  collections.namedtuple('Td3InfoPlusTdError', ('actor_loss', 'critic_loss',
-                                                'td_error_per_element',))):
+class Td3ReverbInfo(
+  collections.namedtuple('Td3ReverbInfo', ('actor_loss', 'critic_loss',
+                                           'td_error_per_element',))):
   pass
 
 
 @gin.configurable
-class Td3AgentReverb(Td3AgentInvertingGradients):
-  """A TD3 Agent which uses PER by Reverb."""
+class Td3AgentReverb(td3_inverting_gradients.Td3AgentInvertingGradients):
+  """A TD3 Inverting Gradients Agent which uses PER by Reverb."""
 
   def _loss(self, experience: types.NestedTensor, weights: types.Tensor) -> \
-        Optional[LossInfo]:
+        Optional[tf_agent.LossInfo]:
     raise NotImplementedError("Loss not implemented.")
 
   def _train(self, experience, weights=None):
@@ -48,10 +47,10 @@ class Td3AgentReverb(Td3AgentInvertingGradients):
       assert trainable_critic_variables, ('No trainable critic variables to '
                                           'optimize.')
       tape.watch(trainable_critic_variables)
-      (critic_loss, td_errors_mean) = self.critic_loss(time_steps, actions,
-                                                       next_time_steps,
-                                                       weights=weights,
-                                                       training=True)
+      critic_loss, td_errors_mean = self.critic_loss(time_steps, actions,
+                                                     next_time_steps,
+                                                     weights=weights,
+                                                     training=True)
     tf.debugging.check_numerics(critic_loss, 'Critic loss is inf or nan.')
     critic_grads = tape.gradient(critic_loss, trainable_critic_variables)
     self._apply_gradients(critic_grads, trainable_critic_variables,
@@ -67,7 +66,7 @@ class Td3AgentReverb(Td3AgentInvertingGradients):
 
     # We only optimize the actor every actor_update_period training steps.
     def optimize_actor():
-      actor_grads = self.actor_grads(time_steps, training=True)
+      actor_grads = self.actor_grads(time_steps, weights=weights, training=True)
       return self._apply_gradients(actor_grads, trainable_actor_variables,
                                    self._actor_optimizer)
 
@@ -78,12 +77,11 @@ class Td3AgentReverb(Td3AgentInvertingGradients):
     self.train_step_counter.assign_add(1)
     self._update_target()
 
-    # TODO(b/124382360): Compute per element TD loss and return in loss_info.
     total_loss = actor_loss + critic_loss
 
     return tf_agent.LossInfo(total_loss,
-                             Td3InfoPlusTdError(actor_loss, critic_loss,
-                                                td_errors_mean))
+                             Td3ReverbInfo(actor_loss, critic_loss,
+                                           td_errors_mean))
 
   def critic_loss(self,
                   time_steps: ts.TimeStep,
@@ -93,17 +91,17 @@ class Td3AgentReverb(Td3AgentInvertingGradients):
                   training: bool = False) -> (types.Tensor,):
     """Computes the critic loss for TD3 training.
 
-Args:
-  time_steps: A batch of timesteps.
-  actions: A batch of actions.
-  next_time_steps: A batch of next timesteps.
-  weights: Optional scalar or element-wise (per-batch-entry) importance
-    weights.
-  training: Whether this loss is being used for training.
+    Args:
+      time_steps: A batch of timesteps.
+      actions: A batch of actions.
+      next_time_steps: A batch of next timesteps.
+      weights: Optional scalar or element-wise (per-batch-entry) importance
+        weights.
+      training: Whether this loss is being used for training.
 
-Returns:
-  critic_loss: A scalar critic loss.
-"""
+    Returns:
+      critic_loss: A scalar critic loss.
+    """
     with tf.name_scope('critic_loss'):
       target_actions, _ = self._target_actor_network(
         next_time_steps.observation, next_time_steps.step_type,
@@ -217,6 +215,6 @@ Returns:
         critic_loss *= weights
 
       return tf.reduce_mean(input_tensor=critic_loss), \
-             tf.stop_gradient(
-               td_targets - tf.math.divide(pred_td_targets_all[0] +
-                                           pred_td_targets_all[1], 2.0))
+             tf.stop_gradient(td_targets -
+                              tf.math.divide(pred_td_targets_all[0] +
+                                             pred_td_targets_all[1], 2.0))
