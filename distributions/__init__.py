@@ -1,5 +1,3 @@
 """Custom Distributions module."""
 
-import custom_normal
-
-__all__ = ['custom_normal']
+import distributions.custom_normal

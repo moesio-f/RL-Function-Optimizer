@@ -1,8 +1,7 @@
 """Mathematical functions module."""
 
-import function
-import numpy_functions
-import tensorflow_functions
-import utils
+import functions.function
+import functions.numpy_functions
+import functions.tensorflow_functions
+import functions.utils
 
-__all__ = ["function", "numpy_functions", "tensorflow_functions", "utils"]
