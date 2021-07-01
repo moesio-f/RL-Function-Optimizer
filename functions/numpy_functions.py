@@ -39,7 +39,8 @@ class Griewank(Function):
             x = x.astype(np.float32, casting='same_kind')
 
         griewank_sum = np.sum(x ** 2, axis=0) / 4000.0
-        den = np.arange(start=1, stop=(x.shape[0] + 1), dtype=x.dtype)
+        d = x.shape[0]
+        den = np.arange(1, d+1, dtype=x.dtype).reshape((d,1))
         prod = np.cos(x / np.sqrt(den))
         prod = np.prod(prod, axis=0)
         return griewank_sum - prod + 1
@@ -85,7 +86,6 @@ class Rosenbrock(Function):
         if x.dtype != np.float32:
             x = x.astype(np.float32, casting='same_kind')
 
-        d = x.shape[0]
         xi = x[:-1]
         xnext = x[1:]
         return np.sum( 100 * (xnext - xi**2)**2 + (xi - 1)**2 , axis=0)
@@ -101,9 +101,9 @@ class Zakharov(Function):
             x = x.astype(np.float32, casting='same_kind')
 
         d = x.shape[0]
-
         sum1 = np.sum(x * x, axis=0)
-        sum2 = np.sum(x * np.arange(start=1, stop=(d + 1), dtype=x.dtype) / 2, axis=0)
+        mult = np.arange(1, d+1, dtype=x.dtype).reshape((d, 1))
+        sum2 = np.sum(x * mult / 2, axis=0)
         return sum1 + sum2 ** 2 + sum2 ** 4
 
 
@@ -149,8 +149,8 @@ class SumSquares(Function):
             x = x.astype(np.float32, casting='same_kind')
 
         d = x.shape[0]
-        mul = np.arange(start=1, stop=(d + 1), dtype=x.dtype)
-        return np.sum((x ** 2) * mul, axis=0)
+        m = np.arange(1, d+1, dtype=x.dtype).reshape((d, 1))
+        return np.sum(m * x**2, axis=0)
 
 
 class Sphere(Function):
@@ -192,5 +192,5 @@ class DixonPrice(Function):
         return term1 + term2
 
 def list_all_functions() -> [Function]:
-    return [Ackley(), Griewank(), Rastrigin(), Levy(), Rosenbrock(), Zakharov(),
-            PowerSum(), Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid(), DixonPrice()]
+    return [Sphere(), SumSquares(), Bohachevsky(), RotatedHyperEllipsoid(), Ackley(), Griewank(), 
+            Rastrigin(), Levy(), Rosenbrock(), DixonPrice(), Zakharov(), PowerSum()]
