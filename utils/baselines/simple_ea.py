@@ -7,10 +7,10 @@ from deap import base
 from deap import creator
 from deap import tools
 
-from functions.numpy_functions import RotatedHyperEllipsoid
+import functions.numpy_functions as npf
 
-dims = 20
-function = RotatedHyperEllipsoid()
+dims = 200
+function = npf.Sphere()
 
 
 def eval_function(individual):
@@ -36,7 +36,7 @@ toolbox.register("select", tools.selTournament, tournsize=3)
 
 
 def main():
-  population = toolbox.population(n=300)
+  population = toolbox.population(n=500)
   hall_of_fame = tools.HallOfFame(1)
   stats = tools.Statistics(lambda ind: ind.fitness.values)
   stats.register("avg", np.mean)

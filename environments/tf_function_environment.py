@@ -8,7 +8,7 @@ from tf_agents.trajectories import time_step as ts
 from tf_agents.utils import common
 
 from environments import py_function_environment
-from functions.function import Function
+import functions.base
 
 FIRST = ts.StepType.FIRST
 MID = ts.StepType.MID
@@ -18,7 +18,8 @@ MAX_STEPS = 50000
 
 class TFFunctionEnvironment(tf_environment.TFEnvironment):
   """Single-agent function environment."""
-  def __init__(self, function: Function, dims, clip_actions: bool = False):
+  def __init__(self, function: functions.base.Function, dims,
+               clip_actions: bool = False):
     self._function = function
     self._domain_min = tf.cast(function.domain.min, tf.float32)
     self._domain_max = tf.cast(function.domain.max, tf.float32)

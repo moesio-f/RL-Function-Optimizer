@@ -5,7 +5,7 @@ import numpy as np
 from tf_agents.environments.tf_environment import TFEnvironment
 from tf_agents.policies.tf_policy import TFPolicy
 
-from functions.function import Function
+from functions.base import Function
 
 
 def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy,

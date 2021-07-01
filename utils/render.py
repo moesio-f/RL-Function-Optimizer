@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from functions.function import Function
+from functions.base import Function
 
 
 # TODO: Atualizar classes para renderizar os ambientes

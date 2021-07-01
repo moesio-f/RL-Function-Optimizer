@@ -3,7 +3,7 @@
 import numpy as np
 from numpy.random import default_rng
 
-from functions.function import Function
+from functions.base import Function
 
 
 def function_range_estimation(function: Function, dims: int,

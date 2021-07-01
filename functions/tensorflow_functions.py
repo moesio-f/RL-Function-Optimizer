@@ -3,13 +3,15 @@
 import numpy as np
 import tensorflow as tf
 
-from functions.function import Function, Domain
+import functions.base as base
 
 
-class Ackley(Function):
+class Ackley(base.Function):
   """Ackley function as defined in:
   https://www.sfu.ca/~ssurjano/ackley.html."""
-  def __init__(self, domain: Domain = Domain(min=-32.768, max=32.768), a=20,
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-32.768, max=32.768),
+               a=20,
                b=0.2, c=2 * np.math.pi):
     super().__init__(domain)
     self._a = a
@@ -39,10 +41,11 @@ class Ackley(Function):
     return self._c
 
 
-class Griewank(Function):
+class Griewank(base.Function):
   """Griewank function as defined in:
   https://www.sfu.ca/~ssurjano/griewank.html."""
-  def __init__(self, domain: Domain = Domain(min=-600.0, max=600.0)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-600.0, max=600.0)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -56,8 +59,8 @@ class Griewank(Function):
     return griewank_sum - prod + 1
 
 
-class Rastrigin(Function):
-  def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
+class Rastrigin(base.Function):
+  def __init__(self, domain: base.Domain = base.Domain(min=-5.12, max=5.12)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -69,10 +72,11 @@ class Rastrigin(Function):
                                   axis=0)
 
 
-class Levy(Function):
+class Levy(base.Function):
   """Levy function as defined in:
   https://www.sfu.ca/~ssurjano/levy.html."""
-  def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-10.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -92,10 +96,11 @@ class Levy(Function):
     return term1 + levy_sum + term3
 
 
-class Rosenbrock(Function):
+class Rosenbrock(base.Function):
   """Rosenbrock function as defined in:
   https://www.sfu.ca/~ssurjano/rosen.html."""
-  def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-5.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -107,10 +112,11 @@ class Rosenbrock(Function):
     return tf.reduce_sum(100 * (xnext - xi ** 2) ** 2 + (xi - 1) ** 2, axis=0)
 
 
-class Zakharov(Function):
+class Zakharov(base.Function):
   """Zakharov function as defined in:
   https://www.sfu.ca/~ssurjano/zakharov.html."""
-  def __init__(self, domain: Domain = Domain(min=-5.0, max=10.0)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-5.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -120,40 +126,15 @@ class Zakharov(Function):
     d = x.shape[0]
 
     sum1 = tf.reduce_sum(x * x, axis=0)
-    sum2 = tf.reduce_sum(x * tf.range(1, (d + 1), x.dtype) / 2, axis=0)
+    sum2 = tf.reduce_sum(x * tf.range(1, (d + 1), dtype=x.dtype) / 2, axis=0)
     return sum1 + sum2 ** 2 + sum2 ** 4
 
 
-class PowerSum(Function):
-  """PowerSum function as defined in:
-  https://www.sfu.ca/~ssurjano/powersum.html.
-  TODO: Review implementation and function definition."""
-  def __init__(self, domain: Domain = Domain(min=0.0, max=5.0),
-               b=tf.constant([8, 18, 44, 114], dtype=tf.float32)):
-    super().__init__(domain)
-    self._b = b
-
-  def __call__(self, x: tf.Tensor):
-    if x.dtype != tf.float32:
-      x = tf.cast(x, tf.float32)
-
-    d = x.shape[0]
-    bd = self.b.shape[0]
-
-    return tf.reduce_sum(tf.pow(
-      tf.convert_to_tensor([tf.reduce_sum(tf.pow(x, (i + 1))) - self.b[i % bd]
-                            for i in range(d)], dtype=tf.float32),
-      tf.constant(2.0)), axis=0)
-
-  @property
-  def b(self):
-    return self._b
-
-
-class Bohachevsky(Function):
+class Bohachevsky(base.Function):
   """Bohachevsky function (f1, 2 dims only) as defined in:
   https://www.sfu.ca/~ssurjano/boha.html."""
-  def __init__(self, domain: Domain = Domain(min=-100.0, max=100.0)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-100.0, max=100.0)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -163,28 +144,31 @@ class Bohachevsky(Function):
     d = x.shape[0]
     assert d == 2
 
-    return x[0] ** 2 + 2 * (x[1] ** 2) - 0.3 * tf.cos(
-      3 * np.pi * x[0]) - 0.4 * tf.cos(4 * np.pi * x[1]) + 0.7
+    return tf.pow(x[0], 2) + tf.math.multiply(2, tf.pow(x[1], 2)) - \
+           tf.math.multiply(0.3, tf.cos(3 * np.pi * x[0])) - \
+           tf.math.multiply(0.4, tf.cos(4 * np.pi * x[1])) + 0.7
 
 
-class SumSquares(Function):
+class SumSquares(base.Function):
   """SumSquares function as defined in:
   https://www.sfu.ca/~ssurjano/sumsqu.html."""
-  def __init__(self, domain: Domain = Domain(min=-10.0, max=10.0)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-10.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
     if x.dtype != tf.float32:
       x = tf.cast(x, tf.float32)
 
-    mul = tf.range(1, x.shape[0], dtype=x.dtype)
+    mul = tf.range(1, x.shape[0] + 1, dtype=x.dtype)
     return tf.reduce_sum((x ** 2) * mul, axis=0)
 
 
-class Sphere(Function):
+class Sphere(base.Function):
   """Sphere function as defined in:
   https://www.sfu.ca/~ssurjano/spheref.html."""
-  def __init__(self, domain: Domain = Domain(min=-5.12, max=5.12)):
+
+  def __init__(self, domain: base.Domain = base.Domain(min=-5.12, max=5.12)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -194,10 +178,13 @@ class Sphere(Function):
     return tf.reduce_sum(x * x, axis=0)
 
 
-class RotatedHyperEllipsoid(Function):
+class RotatedHyperEllipsoid(base.Function):
   """Rotated Hyper-Ellipsoid function as defined in:
-  https://www.sfu.ca/~ssurjano/rothyp.html."""
-  def __init__(self, domain: Domain = Domain(min=-65.536, max=65.536)):
+  https://www.sfu.ca/~ssurjano/rothyp.html.
+  TODO: Melhorar implementação."""
+
+  def __init__(self,
+               domain: base.Domain = base.Domain(min=-65.536, max=65.536)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
@@ -212,17 +199,21 @@ class RotatedHyperEllipsoid(Function):
       dtype=tf.float32), axis=0)
 
 
-class DixonPrice(Function):
+class DixonPrice(base.Function):
   """Dixon-Price function as defined in:
   https://www.sfu.ca/~ssurjano/dixonpr.html."""
-  def __init__(self, domain: Domain = Domain(-10, 10)):
+
+  def __init__(self, domain: base.Domain = base.Domain(-10, 10)):
     super().__init__(domain)
 
   def __call__(self, x: tf.Tensor):
+    if x.dtype != tf.float32:
+      x = tf.cast(x, tf.float32)
+
     x0 = x[0]
     d = x.shape[0]
     term1 = (x0 - 1) ** 2
-    ii = tf.range(2.0, d + 1)
+    ii = tf.range(2.0, d + 1, dtype=tf.float32)
     xi = x[1:]
     xold = x[:-1]
     dixon_sum = ii * (2 * xi ** 2 - xold) ** 2
@@ -230,7 +221,7 @@ class DixonPrice(Function):
     return term1 + term2
 
 
-def list_all_functions() -> [Function]:
+def list_all_functions() -> [base.Function]:
   return [Ackley(), Griewank(), Rastrigin(), Levy(), Rosenbrock(), Zakharov(),
-          PowerSum(), Bohachevsky(), SumSquares(), Sphere(),
-          RotatedHyperEllipsoid(), DixonPrice()]
+          Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid(),
+          DixonPrice()]

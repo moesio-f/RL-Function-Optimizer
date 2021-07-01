@@ -1,6 +1,6 @@
 """PyEnvironments that implement mathematical functions as environments."""
 
-from collections import namedtuple
+import collections
 from typing import Optional, Text, Any
 
 import numpy as np
@@ -10,13 +10,14 @@ from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 
-from functions.function import Function
+import functions.base
 
 MAX_STEPS = 50000
 
 
 class FunctionEnvironmentInfo(
-  namedtuple('FunctionEnvironmentInfo', ('position', 'objective_value'))):
+  collections.namedtuple('FunctionEnvironmentInfo',
+                         ('position', 'objective_value'))):
   pass
 
 
@@ -32,7 +33,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
   Every new state (position), s + a, is in the domain (clipped when needed).
   Actions can be restricted: ai in [min, max].
   """
-  def __init__(self, function: Function, dims,
+  def __init__(self, function: functions.base.Function, dims,
                clip_actions: bool = False) -> None:
     super().__init__()
     self._rng = default_rng()
@@ -136,7 +137,7 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
 class MultiAgentFunctionEnv(py_environment.PyEnvironment):
   """Multi-agent function environment."""
   def __init__(self,
-               function: Function,
+               function: functions.base.Function,
                dims: int,
                n_agents: int,
                clip_actions: bool = False) -> None:

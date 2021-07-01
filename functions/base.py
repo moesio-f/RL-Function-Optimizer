@@ -1,16 +1,16 @@
 """Base classes for functions."""
 
 import abc
-from typing import NamedTuple
+import typing
 
 
-class Domain(NamedTuple):
+class Domain(typing.NamedTuple):
   min: float
   max: float
 
 
 class Function:
-  """Base class for any functions."""
+  """Base class for all functions."""
   def __init__(self, domain: Domain):
     assert domain is not None
     self._domain = domain

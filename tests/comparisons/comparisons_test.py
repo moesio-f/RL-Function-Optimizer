@@ -13,7 +13,7 @@ from tf_agents.environments.wrappers import TimeLimit
 from tf_agents.policies.tf_policy import TFPolicy
 
 from environments.py_function_environment import PyFunctionEnvironment
-from functions.function import Function
+from functions.base import Function
 from functions.numpy_functions import Ackley, Sphere
 
 MODELS_DIR = '../models'
