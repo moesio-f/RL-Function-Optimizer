@@ -1,14 +1,15 @@
 """Utility methods for hyperparameters choices."""
 
 import numpy as np
-from numpy.random import default_rng
+from numpy import random
 
 from functions.base import Function
 
 
-def function_range_estimation(function: Function, dims: int,
+def function_range_estimation(function: Function,
+                              dims: int,
                               num_random_samples: int = 300000):
-  rng = default_rng()
+  rng = random.default_rng()
 
   value_at_min = function(
     np.repeat(function.domain.min, dims).astype(np.float32))

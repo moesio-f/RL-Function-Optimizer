@@ -2,16 +2,20 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-from tf_agents.environments.tf_environment import TFEnvironment
-from tf_agents.policies.tf_policy import TFPolicy
+from tf_agents.environments import tf_environment
+from tf_agents.policies import tf_policy
 
 from functions.base import Function
 
 
-def evaluate_agent(eval_env: TFEnvironment, policy_eval: TFPolicy,
+def evaluate_agent(eval_env: tf_environment.TFEnvironment,
+                   policy_eval: tf_policy.TFPolicy,
                    function: Function,
-                   dims, name_algorithm, name_policy=None,
-                   save_to_file=False, verbose=False,
+                   dims,
+                   name_algorithm,
+                   name_policy=None,
+                   save_to_file=False,
+                   verbose=False,
                    show_all_trajectories=False,
                    episodes=50):
   if name_policy is None:

@@ -1,13 +1,14 @@
 """Replay Buffer debugger tool."""
 
 import numpy as np
-from tf_agents.replay_buffers.tf_uniform_replay_buffer import \
-  TFUniformReplayBuffer
+from tf_agents.replay_buffers import tf_uniform_replay_buffer
 
 
 class ReplayBufferState:
   """Class that represents a replay buffer state and its summary statistics."""
-  def __init__(self, replay_buffer: TFUniformReplayBuffer):
+
+  def __init__(self,
+               replay_buffer: tf_uniform_replay_buffer.TFUniformReplayBuffer):
     self._data_spec = replay_buffer.data_spec
 
     self._list_trajectories = list(replay_buffer.as_dataset(
@@ -46,7 +47,8 @@ class ReplayBufferState:
 
     return num, 100 * (num / self._num_samples)
 
-  def num_rewards_close_to(self, value: np.ndarray, reward_scale_factor=1.0,
+  def num_rewards_close_to(self, value: np.ndarray,
+                           reward_scale_factor=1.0,
                            ref_l2_norm=1.0):
     num = 0
 

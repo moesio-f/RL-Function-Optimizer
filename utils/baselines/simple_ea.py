@@ -1,7 +1,7 @@
 """Simple Evolutionary Algorithm (EA) as implemented by DEAP."""
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from deap import algorithms
 from deap import base
 from deap import creator
@@ -14,7 +14,7 @@ function = npf.Sphere()
 
 
 def eval_function(individual):
-  return function(np.array(individual, dtype=np.float32))
+  return function(np.array(individual, dtype=np.float32)),
 
 
 creator.create("FitnessMinimum", base.Fitness, weights=(-1.0,))
