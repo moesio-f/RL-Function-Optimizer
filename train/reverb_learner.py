@@ -1,22 +1,23 @@
-"""Learner implementation for Reverb as PER."""
+"""Learner implementation for Reverb used as
+a Prioritized Experience Replay (PER) Buffer."""
 
 import gin
 
 import tensorflow as tf
-from tf_agents.replay_buffers.reverb_replay_buffer import ReverbReplayBuffer
-from tf_agents.train.learner import Learner
+from tf_agents.replay_buffers import reverb_replay_buffer as reverb_rb
+from tf_agents.train import learner
 from tf_agents.typing import types
 
 
 @gin.configurable
-class ReverbLearnerPER(Learner):
-  """Reverb Learner class."""
+class ReverbLearnerPER(learner.Learner):
+  """Reverb Learner class for Prioritized Replay Experience (PER)."""
 
   def __init__(self,
                root_dir,
                train_step,
                agent,
-               reverb_replay_buffer: ReverbReplayBuffer,
+               reverb_replay_buffer: reverb_rb.ReverbReplayBuffer,
                initial_is_weight_exp: types.Float = 0.5,
                final_is_weight_exp: types.Float = 1.0,
                is_weight_exp_steps: types.Int = 200000,
