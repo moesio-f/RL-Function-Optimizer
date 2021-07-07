@@ -1,3 +1,3 @@
 """Custom Networks Module."""
 
-import networks.custom_actor_network
+import networks.linear_actor_network

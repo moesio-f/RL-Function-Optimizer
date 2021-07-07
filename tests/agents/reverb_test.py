@@ -21,7 +21,7 @@ from agents.td3_ig_reverb_per import Td3AgentReverb
 from environments.py_env_wrappers import RewardClip, RewardScale
 from environments.py_function_environment import PyFunctionEnvironment
 from functions.numpy_functions import Sphere
-from networks.custom_actor_network import CustomActorNetwork
+from networks.linear_actor_network import LinearActorNetwork
 from train.reverb_learner import ReverbLearnerPER
 
 sys.path.append('/content/RL-Function-Optimizer/')
@@ -90,12 +90,10 @@ exploration_noise_num_steps = round(exploration_noise_num_episodes * steps)
 is_weight_exponent_steps = round(0.85 * (num_episodes * steps))
 
 # Creating networks
-actor_network = CustomActorNetwork(input_tensor_spec=obs_spec,
+actor_network = LinearActorNetwork(input_tensor_spec=obs_spec,
                                    output_tensor_spec=act_spec,
                                    fc_layer_params=fc_layer_params,
-                                   activation_fn=tf.keras.activations.relu,
-                                   activation_action_fn=
-                                   tf.keras.activations.linear)
+                                   activation_fn=tf.keras.activations.relu)
 critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
                                observation_fc_layer_params=
                                observation_fc_layer_params,

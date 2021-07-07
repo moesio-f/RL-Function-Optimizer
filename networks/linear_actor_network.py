@@ -1,4 +1,4 @@
-"""Sample Actor network."""
+"""Simple Actor network."""
 
 import gin
 import tensorflow as tf  # pylint: disable=g-explicit-tensorflow-version-import
@@ -8,8 +8,9 @@ from tf_agents.networks import utils
 
 
 @gin.configurable
-class CustomActorNetwork(network.Network):
-  """Creates an actor network."""
+class LinearActorNetwork(network.Network):
+  """Creates an actor network with linear activation in
+  the final layer."""
 
   def __init__(self,
                input_tensor_spec,
@@ -18,11 +19,10 @@ class CustomActorNetwork(network.Network):
                dropout_layer_params=None,
                conv_layer_params=None,
                activation_fn=tf.keras.activations.relu,
-               activation_action_fn=tf.keras.activations.tanh,
                kernel_initializer=None,
                last_kernel_initializer=None,
-               name='ActorNetwork'):
-    """Creates an instance of `ActorNetwork`.
+               name='LinearActorNetwork'):
+    """Creates an instance of `LinearActorNetwork`.
 
     Args:
       input_tensor_spec: A nest of `tensor_spec.TensorSpec` representing the
@@ -77,7 +77,6 @@ class CustomActorNetwork(network.Network):
       last_kernel_initializer = tf.keras.initializers.RandomUniform(
         minval=-0.003, maxval=0.003)
 
-    # TODO(kbanoop): Replace mlp_layers with encoding networks.
     self._mlp_layers = utils.mlp_layers(
       conv_layer_params,
       fc_layer_params,
@@ -89,7 +88,7 @@ class CustomActorNetwork(network.Network):
     self._mlp_layers.append(
       tf.keras.layers.Dense(
         flat_action_spec[0].shape.num_elements(),
-        activation=activation_action_fn,
+        activation=tf.keras.activations.linear,
         kernel_initializer=last_kernel_initializer,
         name='action'))
 

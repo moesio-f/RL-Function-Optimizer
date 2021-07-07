@@ -13,7 +13,7 @@ from tf_agents.utils import common
 from agents.td3_inverting_gradients import Td3AgentInvertingGradients
 from environments.py_function_environment import PyFunctionEnvironment
 from functions.numpy_functions import Sphere
-from networks.custom_actor_network import CustomActorNetwork
+from networks.linear_actor_network import LinearActorNetwork
 from utils.evaluation import evaluate_agent
 
 num_episodes = 2000
@@ -79,12 +79,10 @@ exploration_noise_num_steps = round(exploration_noise_num_episodes * steps)
 
 # Criando as redes.
 
-actor_network = CustomActorNetwork(input_tensor_spec=obs_spec,
+actor_network = LinearActorNetwork(input_tensor_spec=obs_spec,
                                    output_tensor_spec=act_spec,
                                    fc_layer_params=fc_layer_params,
-                                   activation_fn=tf.keras.activations.relu,
-                                   activation_action_fn=
-                                   tf.keras.activations.linear)
+                                   activation_fn=tf.keras.activations.relu)
 critic_network = CriticNetwork(input_tensor_spec=(obs_spec, act_spec),
                                observation_fc_layer_params=
                                observation_fc_layer_params,
