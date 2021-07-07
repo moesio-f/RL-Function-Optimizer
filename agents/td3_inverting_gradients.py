@@ -23,7 +23,7 @@ from tf_agents.utils import nest_utils
 from tf_agents.utils import object_identity
 from tf_agents.agents.td3 import td3_agent
 
-from policies import gaussian_scale_decay_policy
+from policies import gaussian_policy_linear_decay
 
 
 @gin.configurable
@@ -186,12 +186,12 @@ class Td3AgentInvertingGradients(tf_agent.TFAgent):
         scale=self._exp_noise_std,
         clip=True)
     else:
-      collect_policy = gaussian_scale_decay_policy. \
-        GaussianLinearScaleDecayPolicy(collect_policy,
-                                       self._exp_noise_std,
-                                       self._exp_noise_std_end,
-                                       self._exp_noise_steps,
-                                       clip=True)
+      collect_policy = gaussian_policy_linear_decay. \
+        GaussianPolicyLinearDecay(collect_policy,
+                                  self._exp_noise_std,
+                                  self._exp_noise_std_end,
+                                  self._exp_noise_steps,
+                                  clip=True)
 
     train_sequence_length = 2 if not self._actor_network.state_spec else None
     super().__init__(

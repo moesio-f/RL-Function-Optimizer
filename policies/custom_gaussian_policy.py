@@ -11,7 +11,7 @@ from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 
-from distributions.custom_normal import CustomNormal
+from distributions import custom_normal
 
 
 class CustomGaussianPolicy(tf_policy.TFPolicy):
@@ -21,11 +21,12 @@ class CustomGaussianPolicy(tf_policy.TFPolicy):
                scale: types.Float = 1.0,
                clip: bool = True,
                name: Optional[Text] = None):
-    """Builds an GaussianPolicy wrapping wrapped_policy.
+    """Builds a CustomGaussianPolicy wrapping wrapped_policy.
 
     Args:
-      wrapped_policy: A policy to wrap and add OU noise to.
+      wrapped_policy: A policy to wrap and add Gaussian noise to.
       scale: Stddev of the Gaussian distribution from which noise is drawn.
+        Default 1.0
       clip: Whether to clip actions to spec. Default True.
       name: The name of this policy.
     """
@@ -47,7 +48,7 @@ class CustomGaussianPolicy(tf_policy.TFPolicy):
     self._wrapped_policy = wrapped_policy
 
     def _create_normal_distribution(action_spec):
-      return CustomNormal(
+      return custom_normal.CustomNormal(
         loc=tf.zeros(action_spec.shape, dtype=action_spec.dtype),
         scale=tf.ones(action_spec.shape, dtype=action_spec.dtype) * scale)
 

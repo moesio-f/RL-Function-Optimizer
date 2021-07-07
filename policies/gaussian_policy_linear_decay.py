@@ -10,31 +10,44 @@ from tf_agents.trajectories import policy_step
 from tf_agents.trajectories import time_step as ts
 from tf_agents.typing import types
 
-from policies.custom_gaussian import CustomGaussianPolicy
+from policies import custom_gaussian_policy
 
 tfd = tfp.distributions
 
 
-class GaussianLinearScaleDecayPolicy(CustomGaussianPolicy):
+class GaussianPolicyLinearDecay(custom_gaussian_policy.CustomGaussianPolicy):
   """Actor Policy with Gaussian exploration noise that linearly decays over
-  time. """
+  time."""
 
   def __init__(self, wrapped_policy: tf_policy.TFPolicy,
-               initial_scale: types.Float = 1.,
+               initial_scale: types.Float = 1.0,
                final_scale: types.Float = 0.1,
                num_steps: types.Int = 10000,
                clip: bool = True,
                name: Optional[Text] = None):
+    """Builds a GaussianPolicyLinearDecay wrapping wrapped_policy.
+
+        Args:
+          wrapped_policy: A policy to wrap and add Gaussian noise to.
+          initial_scale: Initial stddev of the Gaussian distribution
+            from which noise is drawn. Default 1.0
+          final_scale: Final stddev of the Gaussian distribution
+            from which noise is drawn. Default 0.1
+          num_steps: Number of iterations to reach the final_scale starting
+            from initial_scale. Default 10000
+          clip: Whether to clip actions to spec. Default True.
+          name: The name of this policy.
+        """
     if final_scale > initial_scale:
       raise ValueError("Final scale can't be greater than initial scale!")
 
-    if num_steps < 0:
-      raise ValueError("Number of steps can't be negative!")
+    if num_steps <= 0:
+      raise ValueError("Number of steps can't be non-positive!")
 
     super().__init__(wrapped_policy,
-                                                         initial_scale,
-                                                         clip,
-                                                         name)
+                     initial_scale,
+                     clip,
+                     name)
     self._scale_decay = tf.constant((initial_scale - final_scale) / num_steps,
                                     dtype=self._action_spec.dtype)
     self._initial_scale = tf.constant(initial_scale,
