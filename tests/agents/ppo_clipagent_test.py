@@ -2,10 +2,10 @@
 
 import tensorflow as tf
 from tf_agents.agents.ppo import ppo_clip_agent
-from tf_agents.drivers import dynamic_episode_driver
+from tf_agents.drivers import dynamic_episode_driver as dy_ed
 from tf_agents.environments import parallel_py_environment
 from tf_agents.environments import tf_py_environment
-from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.environments import wrappers
 from tf_agents.networks import actor_distribution_network
 from tf_agents.networks import value_network
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
@@ -13,14 +13,13 @@ from tf_agents.system import system_multiprocessing as multiprocessing
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
-from environments.py_function_environment import PyFunctionEnvironment
-from functions.numpy_functions import Ackley
-from utils.evaluation import evaluate_agent
+from environments import py_function_environment as py_func_env
+from functions import numpy_functions as npf
+from utils import evaluation
 
 
 def main(_):
   num_episodes = 2000
-  collect_fe_per_episode = 1
   replay_buffer_capacity = 251  # Per-environment
   num_epochs = 25
   num_parallel_environments = 15
@@ -34,11 +33,13 @@ def main(_):
   steps = 250
 
   dims = 2
-  function = Ackley()
+  function = npf.Ackley()
 
   tf_env_eval = tf_py_environment.TFPyEnvironment(
-    TimeLimit(env=PyFunctionEnvironment(function=function, dims=dims,
-                                        clip_actions=True), duration=steps))
+    wrappers.TimeLimit(env=py_func_env.PyFunctionEnvironment(function=function,
+                                                             dims=dims,
+                                                             clip_actions=True),
+                       duration=steps))
 
   def evaluate_current_policy(policy, episodes=num_eval_episodes):
     total_return = tf.Variable([0.])
@@ -76,9 +77,10 @@ def main(_):
 
   tf_env_training = tf_py_environment.TFPyEnvironment(
     parallel_py_environment.ParallelPyEnvironment(
-      [lambda: TimeLimit(env=PyFunctionEnvironment(function=function, dims=dims,
-                                                   clip_actions=True),
-                         duration=steps)] * num_parallel_environments))
+      [lambda: wrappers.TimeLimit(
+        env=py_func_env.PyFunctionEnvironment(function=function, dims=dims,
+                                              clip_actions=True),
+        duration=steps)] * num_parallel_environments))
 
   actor_net = actor_distribution_network.ActorDistributionNetwork(
     tf_env_training.observation_spec(),
@@ -112,11 +114,11 @@ def main(_):
     batch_size=num_parallel_environments,
     max_length=replay_buffer_capacity)
 
-  collect_driver = dynamic_episode_driver.DynamicEpisodeDriver(tf_env_training,
-                                                               agent.collect_policy,
-                                                               observers=[
-                                                                 replay_buffer.add_batch],
-                                                               num_episodes=collect_fe_per_episode)
+  collect_driver = dy_ed.DynamicEpisodeDriver(tf_env_training,
+                                              agent.collect_policy,
+                                              observers=[
+                                                replay_buffer.add_batch],
+                                              num_episodes=1)
 
   collect_driver.run = common.function(collect_driver.run, autograph=False)
   agent.train = common.function(agent.train, autograph=False)
@@ -140,9 +142,9 @@ def main(_):
                                                      episodes=100)
   print('avg_best_solution: {0} avg_return: {1}'.format(avg_best_sol.numpy()[0],
                                                         avg_return.numpy()[0]))
-  evaluate_agent(tf_env_eval, agent.policy, function, dims,
-                 name_algorithm='PPO-Clip',
-                 save_to_file=False)
+  evaluation.evaluate_agent(tf_env_eval, agent.policy, function, dims,
+                            name_algorithm='PPO-Clip',
+                            save_to_file=False)
 
 
 if __name__ == '__main__':
