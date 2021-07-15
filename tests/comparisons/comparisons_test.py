@@ -7,14 +7,14 @@ from collections import namedtuple
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from tf_agents.environments.tf_environment import TFEnvironment
-from tf_agents.environments.tf_py_environment import TFPyEnvironment
-from tf_agents.environments.wrappers import TimeLimit
-from tf_agents.policies.tf_policy import TFPolicy
+from tf_agents.environments import tf_environment
+from tf_agents.environments import tf_py_environment
+from tf_agents.environments import wrappers
+from tf_agents.policies import tf_policy
 
-from environments.py_function_environment import PyFunctionEnvironment
-from functions.base import Function
-from functions.numpy_functions import Ackley, Sphere
+from environments import py_function_environment as py_fun_env
+from functions import base as base_functions
+from functions import numpy_functions as npf
 
 MODELS_DIR = '../models'
 
@@ -24,9 +24,12 @@ class Trajectory(namedtuple('Trajectory', (
   pass
 
 
-def plot_trajectories(trajectories: [Trajectory], function: Function, dims: int,
+def plot_trajectories(trajectories: [Trajectory],
+                      function: base_functions.Function,
+                      dims: int,
                       save_to_file: bool = True):
-  fig, ax = plt.subplots(figsize=(18.0, 10.0,))
+  # pylint: disable=missing-docstring
+  _, ax = plt.subplots(figsize=(18.0, 10.0,))
 
   for traj in trajectories:
     ax.plot(traj.list_best_values,
@@ -53,7 +56,9 @@ def plot_trajectories(trajectories: [Trajectory], function: Function, dims: int,
   plt.show()
 
 
-def write_to_csv(trajectories: [Trajectory], function: Function, dims: int):
+def write_to_csv(trajectories: [Trajectory],
+                 function: base_functions.Function,
+                 dims: int):
   for trajectory in trajectories:
     with open(f'{function.name}_{str(dims)}_{trajectory.name}_convergence.csv',
               'w', newline='') as file:
@@ -63,10 +68,11 @@ def write_to_csv(trajectories: [Trajectory], function: Function, dims: int):
         writer.writerow([it, mean_obj_value])
 
 
-def run_episode(tf_eval_env: TFEnvironment,
-                policy: TFPolicy,
+def run_episode(tf_eval_env: tf_environment.TFEnvironment,
+                policy: tf_policy.TFPolicy,
                 trajectory_name: str,
-                function: Function) -> Trajectory:
+                function: base_functions.Function) -> Trajectory:
+  # pylint: disable=missing-docstring
   time_step = tf_eval_env.current_time_step()
   done = False
 
@@ -99,19 +105,20 @@ def run_episode(tf_eval_env: TFEnvironment,
                     best_position=best_pos)
 
 
-def run_rl_agent(policy: TFPolicy,
+def run_rl_agent(policy: tf_policy.TFPolicy,
                  trajectory_name: str,
                  num_steps: int,
-                 function: Function,
+                 function: base_functions.Function,
                  dims: int,
                  initial_time_step) -> Trajectory:
+  # pylint: disable=missing-docstring
   # Como as policies já estão treinadas, não tem problema remover o clip da
   # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas os
   # specs que são diferentes.
-  env = PyFunctionEnvironment(function, dims, clip_actions=False)
-  env = TimeLimit(env, duration=num_steps)
+  env = py_fun_env.PyFunctionEnvironment(function, dims, clip_actions=False)
+  env = wrappers.TimeLimit(env, duration=num_steps)
 
-  tf_eval_env = TFPyEnvironment(environment=env)
+  tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
   tf_eval_env._time_step = initial_time_step
 
   return run_episode(tf_eval_env=tf_eval_env,
@@ -121,6 +128,7 @@ def run_rl_agent(policy: TFPolicy,
 
 
 def get_average_trajectory(trajectories: [Trajectory]):
+  # pylint: disable=missing-docstring
   best_values = []
   best_iterations = []
   best_positions = []
@@ -144,13 +152,14 @@ if __name__ == '__main__':
   STEPS = 500
   EPISODES = 100
 
-  for FUNCTION in [Sphere(), Ackley()]:
+  for FUNCTION in [npf.Sphere(), npf.Rosenbrock(), npf.SumSquares(),
+                   npf.Ackley(), npf.Levy(), npf.Rastrigin()]:
     # Como as policies já estão treinadas, não tem problema remover o clip da
     # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas
     # os specs que são diferentes.
-    ENV = PyFunctionEnvironment(FUNCTION, DIMS, clip_actions=False)
-    ENV = TimeLimit(ENV, duration=STEPS)
-    TF_ENV = TFPyEnvironment(environment=ENV)
+    ENV = py_fun_env.PyFunctionEnvironment(FUNCTION, DIMS, clip_actions=False)
+    ENV = wrappers.TimeLimit(ENV, duration=STEPS)
+    TF_ENV = tf_py_environment.TFPyEnvironment(environment=ENV)
 
     reinforce_policy = tf.compat.v2.saved_model.load(
       os.path.join(MODELS_DIR, 'REINFORCE-BL/' + f'{DIMS}D/' + FUNCTION.name))
@@ -203,7 +212,7 @@ if __name__ == '__main__':
                                               dims=DIMS,
                                               initial_time_step=initial_ts))
 
-      ppo_trajectories.append(run_rl_agent(policy=td3_ig_policy,
+      ppo_trajectories.append(run_rl_agent(policy=ppo_policy,
                                            trajectory_name='PPO',
                                            num_steps=STEPS,
                                            function=FUNCTION,

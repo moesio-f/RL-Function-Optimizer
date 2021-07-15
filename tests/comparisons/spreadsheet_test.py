@@ -6,11 +6,13 @@ from collections import namedtuple
 
 import numpy as np
 import tensorflow as tf
-from tf_agents.environments.tf_py_environment import TFPyEnvironment
-from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.environments import tf_py_environment
+from tf_agents.environments import wrappers
 
-import functions.numpy_functions as np_functions
-from environments.py_function_environment import PyFunctionEnvironment
+from environments import py_function_environment as py_fun_env
+from functions import numpy_functions as npf
+
+ROOT_DIR = '../models'
 
 
 # Representa uma função descrita em sua totalidade
@@ -33,50 +35,44 @@ class PolicyFunctionPair(namedtuple('PolicyFunctionPair',
 # Representa os dados obtidos depois de testar
 # uma dada policy numa dada função (Ou seja, um PolicyFunctionPair).
 class PolicyEvaluationData(namedtuple('PolicyEvaluationData',
-                                      ('policy_function_pair_evaluated',
+                                      ('policy_function_pair',
                                        'average_best_solution',
-                                       'average_best_value_time',
-                                       'final_best_values_stddev'))):
+                                       'average_best_solution_time',
+                                       'best_solutions_stddev'))):
   pass
 
 
 def get_all_functions_descriptions(dims: int) -> [FunctionDescription]:
-  functions = np_functions.list_all_functions()
+  # pylint: disable=missing-docstring
+  functions = npf.list_all_functions()
   functions_desc: [FunctionDescription] = []
 
-  # Ackley 0
-  # Rastrigin 0
-  # Griewank 0
-  # Levy 0
-  # Sphere 0
-  # SumSquares 0
-  # Rotated 0
-  # Rosenbrock 0
-  # DixonPrice 0
-  # Zakharov 0
+  # Ackley 0, Rastrigin 0, Griewank 0, Levy 0, Sphere 0, SumSquares 0
+  # Rotated 0, Rosenbrock 0, DixonPrice 0, Zakharov 0
 
   for function in functions:
     functions_desc.append(FunctionDescription(function=function,
-                                               dims=dims,
-                                               global_minimum=0.0))
+                                              dims=dims,
+                                              global_minimum=0.0))
 
   return functions_desc
 
 
 def load_policies_and_functions(functions_desc: [FunctionDescription],
-                                algorithm: str, dims: int,
-                                num_learning_episodes: dict) -> [
-  PolicyFunctionPair]:
-  root_dir = os.path.join(os.getcwd(), "../models")
-  root_dir = os.path.join(root_dir, f'{algorithm}')
+                                algorithm: str,
+                                dims: int,
+                                num_learning_episodes: dict) -> \
+      [PolicyFunctionPair]:
+  # pylint: disable=missing-docstring
+  root_dir = os.path.join(ROOT_DIR, f'{algorithm}')
   root_dir = os.path.join(root_dir, f'{str(dims)}D')
 
   pairs: [PolicyFunctionPair] = []
 
   for function_desc in functions_desc:
     policy_dir = os.path.join(root_dir, function_desc.function.name)
-    if os.path.exists(
-          policy_dir) and function_desc.function.name in num_learning_episodes:
+    if os.path.exists(policy_dir) \
+          and function_desc.function.name in num_learning_episodes:
       policy = tf.compat.v2.saved_model.load(policy_dir)
       pairs.append(PolicyFunctionPair(policy=policy,
                                       function_description=function_desc,
@@ -84,17 +80,16 @@ def load_policies_and_functions(functions_desc: [FunctionDescription],
                                       num_learning_episodes[
                                         function_desc.function.name]))
     else:
-      print('Não foi possível encontrar uma policy para a função {0}.'.format(
+      print('{0} não foi incluído na lista.'.format(
         function_desc.function.name))
-      print(
-        '{0} não foi incluído na lista.'.format(function_desc.function.name))
 
   return pairs
 
 
 def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
-                      steps=500, episodes=100, create_log=False) -> [
-  PolicyEvaluationData]:
+                      steps=500,
+                      episodes=100) -> [PolicyEvaluationData]:
+  # pylint: disable=missing-docstring
   policies_evaluation_data: [PolicyEvaluationData] = []
 
   def evaluate_single_policy(
@@ -105,11 +100,11 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
     # Como as policies já estão treinadas, não tem problema remover o clip da
     # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas
     # os specs que são diferentes.
-    env = PyFunctionEnvironment(
+    env = py_fun_env.PyFunctionEnvironment(
       function=policy_function_pair.function_description.function,
       dims=policy_function_pair.function_description.dims, clip_actions=False)
-    env = TimeLimit(env=env, duration=steps)
-    tf_env = TFPyEnvironment(environment=env)
+    env = wrappers.TimeLimit(env=env, duration=steps)
+    tf_env = tf_py_environment.TFPyEnvironment(environment=env)
 
     policy = policy_function_pair.policy
 
@@ -145,39 +140,20 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
     stddev_best_solutions = np.std(best_solutions)
 
     return PolicyEvaluationData(
-      policy_function_pair_evaluated=policy_function_pair,
+      policy_function_pair=policy_function_pair,
       average_best_solution=avg_best_solution,
-      average_best_value_time=avg_best_solution_time,
-      final_best_values_stddev=stddev_best_solutions)
+      average_best_solution_time=avg_best_solution_time,
+      best_solutions_stddev=stddev_best_solutions)
 
   for pair in policies_functions_pair:
     policies_evaluation_data.append(evaluate_single_policy(pair))
-
-  if create_log:
-    with open('log.txt', 'w') as file:
-      file.write(
-        '\n\nInformações gerais sobre os testes realizados para obter os '
-        'dados:\n')
-      file.write(
-        '\tCada função foi executada por {0} episódios.\n'.format(episodes))
-      file.write(
-        '\tCada episódios permitiu o agente tomar {0} passos (steps).\n'.format(
-          steps))
-      file.write('Informações sobre cada função executada e testada:\n')
-
-      for pol_func_pair in policies_functions_pair:
-        function_desc = pol_func_pair.function_description
-        file.write(
-          '\tFunção: {0} - Dimensões: {1} - Mínimo Global: {2}\n'.format(
-            function_desc.function.name,
-            function_desc.dims,
-            function_desc.global_minimum))
 
   return policies_evaluation_data
 
 
 def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
                  file_name: str):
+  # pylint: disable=missing-docstring
   with open(file_name, 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['Function',
@@ -188,15 +164,15 @@ def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
                      'Average Best Solution Time (Iterations)',
                      'Stddev of best solutions'])
     for pol_data in policies_evaluation_data:
-      pol_function_pair = pol_data.policy_function_pair_evaluated
+      pol_function_pair = pol_data.policy_function_pair
       function_desc = pol_function_pair.function_description
       writer.writerow([function_desc.function.name,
                        function_desc.dims,
                        function_desc.global_minimum,
                        pol_function_pair.num_learning_episodes,
                        pol_data.average_best_solution,
-                       pol_data.average_best_value_time,
-                       pol_data.final_best_values_stddev])
+                       pol_data.average_best_solution_time,
+                       pol_data.best_solutions_stddev])
 
 
 if __name__ == "__main__":
@@ -205,11 +181,18 @@ if __name__ == "__main__":
 
   functions_descriptions = get_all_functions_descriptions(dims=DIMS)
   pol_func_pairs = load_policies_and_functions(functions_descriptions,
-                                               algorithm='REINFORCE-BL',
+                                               algorithm='TD3-IG',
                                                dims=DIMS,
                                                num_learning_episodes={
                                                  'Ackley': 2000,
-                                                 'Sphere': 2000})
-  pol_eval_data = evaluate_policies(pol_func_pairs, episodes=EPISODES,
-                                    create_log=True)
-  write_to_csv(pol_eval_data, file_name='reinforce_data.csv')
+                                                 'Sphere': 2000,
+                                                 'Rosenbrock': 2000,
+                                                 'SumSquares': 2000,
+                                                 'Rastrigin': 2000,
+                                                 'Griewank': 2000,
+                                                 'Levy': 2000,
+                                                 'RotatedHyperEllipsoid': 2000})
+  pol_eval_data = evaluate_policies(pol_func_pairs,
+                                    episodes=EPISODES)
+  write_to_csv(pol_eval_data,
+               file_name='td3_ig_data.csv')

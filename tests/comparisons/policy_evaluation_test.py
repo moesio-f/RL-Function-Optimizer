@@ -3,36 +3,30 @@
 import os
 
 import tensorflow as tf
-from tf_agents.environments.tf_py_environment import TFPyEnvironment
-from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.environments import tf_py_environment
+from tf_agents.environments import wrappers
 
-from environments.py_function_environment import PyFunctionEnvironment
-from functions.numpy_functions import Zakharov
-from utils.evaluation import evaluate_agent
+from environments import py_function_environment as py_fun_env
+from functions import numpy_functions as npf
+from utils import evaluation
 
-ROOT_DIR = os.path.join(os.getcwd(), "../models")
+ROOT_DIR = '../models'
 
-policy_dir = os.path.join(ROOT_DIR, "policy")
-policy_collect_dir = os.path.join(ROOT_DIR, "policy_collect")
+if __name__ == '__main__':
+  function = npf.Sphere()
+  dims = 30
+  steps = 500
 
-saved_pol = tf.compat.v2.saved_model.load(policy_dir)
-saved_pol_col = tf.compat.v2.saved_model.load(policy_collect_dir)
+  policy_dir = os.path.join(ROOT_DIR,
+                            'TD3-IG/' + f'{dims}D/' + function.name)
+  saved_pol = tf.compat.v2.saved_model.load(policy_dir)
 
-function = Zakharov()
-dims = 20
-steps = 2000
+  env = py_fun_env.PyFunctionEnvironment(function, dims)
+  env = wrappers.TimeLimit(env, duration=steps)
 
-env = PyFunctionEnvironment(function, dims)
-env = TimeLimit(env, duration=steps)
+  tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
 
-tf_eval_env = TFPyEnvironment(environment=env)
-
-evaluate_agent(tf_eval_env, saved_pol, function, dims,
-               name_policy='ActorPolicy',
-               name_algorithm='TD3-IG',
-               save_to_file=True, episodes=10)
-
-evaluate_agent(tf_eval_env, saved_pol_col, function, dims,
-               name_policy='GaussianPolicy',
-               name_algorithm='TD3-IG',
-               save_to_file=True, episodes=10)
+  evaluation.evaluate_agent(tf_eval_env, saved_pol, function, dims,
+                            name_policy='TD3-IG',
+                            name_algorithm='TD3-IG',
+                            save_to_file=True, episodes=10)
