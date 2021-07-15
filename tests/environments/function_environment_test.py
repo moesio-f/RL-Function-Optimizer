@@ -1,23 +1,38 @@
 """PyFunctionEnvironment validation tests."""
 
-from tf_agents.environments.utils import validate_py_environment
-from tf_agents.environments.wrappers import TimeLimit
+from tf_agents.environments import utils
+from tf_agents.environments import wrappers
 
-from environments.py_env_wrappers import RewardClip, RewardScale
-from environments.py_function_environment import PyFunctionEnvironment
-from functions.numpy_functions import Sphere
+from environments import py_env_wrappers
+from environments import py_function_environment as py_function_env
+from functions import numpy_functions as npf
 
-env = PyFunctionEnvironment(function=Sphere(), dims=30, clip_actions=True)
-env = RewardClip(env=env, min_reward=-400.0, max_reward=400.0)
-env = RewardScale(env=env, scale_factor=0.2)
-env = TimeLimit(env=env, duration=500)
+function = npf.Sphere()
+dims = 30
 
-validate_py_environment(env, episodes=50)
+env = py_function_env.PyFunctionEnvironment(function=function,
+                                            dims=dims,
+                                            clip_actions=True)
+env = py_env_wrappers.RewardClip(env=env,
+                                 min_reward=-400.0,
+                                 max_reward=400.0)
+env = py_env_wrappers.RewardScale(env=env,
+                                  scale_factor=0.2)
+env = wrappers.TimeLimit(env=env,
+                         duration=500)
 
-unbounded_env = PyFunctionEnvironment(function=Sphere(), dims=30)
-unbounded_env = RewardClip(env=unbounded_env, min_reward=-400.0,
-                           max_reward=400.0)
-unbounded_env = RewardScale(env=unbounded_env, scale_factor=0.2)
-unbounded_env = TimeLimit(env=unbounded_env, duration=500)
+utils.validate_py_environment(env,
+                              episodes=50)
 
-validate_py_environment(unbounded_env, episodes=50)
+unbounded_env = py_function_env.PyFunctionEnvironment(function=function,
+                                                      dims=dims)
+unbounded_env = py_env_wrappers.RewardClip(env=unbounded_env,
+                                           min_reward=-400.0,
+                                           max_reward=400.0)
+unbounded_env = py_env_wrappers.RewardScale(env=unbounded_env,
+                                            scale_factor=0.2)
+unbounded_env = wrappers.TimeLimit(env=unbounded_env,
+                                   duration=500)
+
+utils.validate_py_environment(unbounded_env,
+                              episodes=50)
