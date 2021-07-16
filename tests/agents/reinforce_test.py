@@ -19,11 +19,11 @@ if __name__ == '__main__':
   num_episodes = 2000
 
   # Hiperparametros do Agente
-  actor_lr = 1e-3
+  actor_lr = 5e-4
   discount = 1.0
 
   # Actor Network
-  fc_layer_params = [512, 512, 256]
+  fc_layer_params = [256, 256]
 
   # Envs
   steps = 100
