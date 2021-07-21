@@ -24,8 +24,8 @@ if __name__ == '__main__':
   c_steps_per_it = 1
   replay_buffer_capacity = 1000000
   batch_size = 256
-  target_update_tau = 0.005
-  target_update_period = 1
+  target_update_tau = 5e-3
+  target_update_period = 2
 
   # Hiperparametros do Agente
   actor_lr = 3e-4
@@ -82,9 +82,9 @@ if __name__ == '__main__':
     last_kernel_initializer='glorot_uniform')
 
   # Creating agent
-  actor_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=actor_lr)
-  critic_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=critic_lr)
-  alpha_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=alpha_lr)
+  actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
+  critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
+  alpha_optimizer = tf.keras.optimizers.Adam(learning_rate=alpha_lr)
 
   train_step = train_utils.create_train_step()
 

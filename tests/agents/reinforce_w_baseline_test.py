@@ -20,9 +20,9 @@ if __name__ == '__main__':
   num_episodes = 2000
 
   # Hiperparametros do Agente
-  actor_lr = 5e-4
-  value_lr = 5e-4
-  discount = 1.0
+  actor_lr = 3e-4
+  value_lr = 3e-4
+  discount = 0.99
 
   # Networks
   actor_layer_params = [256, 256]
@@ -74,7 +74,7 @@ if __name__ == '__main__':
                                          value_network=value_network,
                                          optimizer=actor_optimizer,
                                          gamma=discount,
-                                         normalize_returns=True,
+                                         normalize_returns=False,
                                          train_step_counter=train_step)
 
   agent.initialize()
