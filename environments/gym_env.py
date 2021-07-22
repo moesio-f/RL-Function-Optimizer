@@ -2,7 +2,7 @@ from typing import List
 
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from functions.function import Domain, Function
+from functions.base import Domain, Function
 from utils.render import FunctionDrawer
 import matplotlib.pyplot as plt
 import numpy as np

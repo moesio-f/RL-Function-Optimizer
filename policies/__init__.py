@@ -1,1 +1,4 @@
-__all__ = ['gaussian_scale_decay_policy', 'custom_gaussian']
+"""Custom Policies Module."""
+
+# import policies.custom_gaussian_policy
+# import policies.gaussian_policy_linear_decay

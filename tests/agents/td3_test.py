@@ -1,7 +1,9 @@
-"""TD3-IG agent test on FunctionEnvironment."""
+"""TD3 agent test on FunctionEnvironment."""
 
 import numpy as np
 import tensorflow as tf
+from tf_agents.agents.td3 import td3_agent
+from tf_agents.agents.ddpg import actor_network as actor_net
 from tf_agents.agents.ddpg import critic_network as critic_net
 from tf_agents.drivers import dynamic_step_driver as dy_sd
 from tf_agents.environments import tf_py_environment
@@ -10,10 +12,8 @@ from tf_agents.replay_buffers import tf_uniform_replay_buffer
 from tf_agents.train.utils import train_utils
 from tf_agents.utils import common
 
-from agents import td3_inverting_gradients as td3_ig
 from environments import py_function_environment as py_fun_env
 from functions import numpy_functions as npf
-from networks import linear_actor_network as linear_actor_net
 from utils import evaluation
 
 if __name__ == '__main__':
@@ -34,9 +34,7 @@ if __name__ == '__main__':
 
   discount = 0.99
 
-  exploration_noise_std = 0.5
-  exploration_noise_std_end = 0.1
-  exploration_noise_num_episodes = 1850
+  exploration_noise_std = 0.1
   target_policy_noise = 0.2
   target_policy_noise_clip = 0.5
 
@@ -57,12 +55,12 @@ if __name__ == '__main__':
 
   env_training = py_fun_env.PyFunctionEnvironment(function=function,
                                                   dims=dims,
-                                                  clip_actions=False)
+                                                  clip_actions=True)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
   env_eval = py_fun_env.PyFunctionEnvironment(function=function,
                                               dims=dims,
-                                              clip_actions=False)
+                                              clip_actions=True)
   env_eval = wrappers.TimeLimit(env=env_eval, duration=steps_eval)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
@@ -72,11 +70,8 @@ if __name__ == '__main__':
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
-  # Atualizando a exploração para ser determinada com base nos steps
-  exploration_noise_num_steps = round(exploration_noise_num_episodes * steps)
-
   # Criando as redes.
-  actor_network = linear_actor_net.LinearActorNetwork(
+  actor_network = actor_net.ActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
     fc_layer_params=fc_layer_params,
@@ -95,7 +90,7 @@ if __name__ == '__main__':
 
   train_step = train_utils.create_train_step()
 
-  agent = td3_ig.Td3AgentInvertingGradients(
+  agent = td3_agent.Td3Agent(
     time_step_spec=time_spec,
     action_spec=act_spec,
     actor_network=actor_network,
@@ -103,9 +98,7 @@ if __name__ == '__main__':
     actor_optimizer=actor_optimizer,
     critic_optimizer=critic_optimizer,
     target_update_tau=tau,
-    exp_noise_std=exploration_noise_std,
-    exp_noise_std_end=exploration_noise_std_end,
-    exp_noise_steps=exploration_noise_num_steps,
+    exploration_noise_std=exploration_noise_std,
     target_policy_noise=target_policy_noise,
     target_policy_noise_clip=target_policy_noise_clip,
     actor_update_period=actor_update_period,
@@ -122,8 +115,6 @@ if __name__ == '__main__':
     max_length=buffer_size)
 
   # Criando o Driver.
-
-  # Data Collection (Collect for initial episodes)
   driver = dy_sd.DynamicStepDriver(env=tf_env_training,
                                    policy=agent.collect_policy,
                                    observers=[replay_buffer.add_batch],
@@ -184,6 +175,7 @@ if __name__ == '__main__':
                             agent.policy,
                             function,
                             dims,
-                            name_algorithm='TD3-IG',
+                            name_algorithm='TD3',
                             save_to_file=True,
                             verbose=True)
+

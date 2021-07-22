@@ -1,1 +1,3 @@
-__all__ = ['custom_normal']
+"""Custom Distributions module."""
+
+# import distributions.custom_normal
