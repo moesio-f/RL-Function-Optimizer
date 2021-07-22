@@ -12,7 +12,7 @@ from tf_agents.environments import wrappers
 from environments import py_function_environment as py_fun_env
 from functions import numpy_functions as npf
 
-ROOT_DIR = '../models'
+ROOT_DIR = '../models/after-update'  # Alterar para a pasta com os modelos.
 
 
 # Representa uma função descrita em sua totalidade
@@ -181,18 +181,18 @@ if __name__ == "__main__":
 
   functions_descriptions = get_all_functions_descriptions(dims=DIMS)
   pol_func_pairs = load_policies_and_functions(functions_descriptions,
-                                               algorithm='TD3-IG',
+                                               algorithm='TD3',
                                                dims=DIMS,
                                                num_learning_episodes={
                                                  'Ackley': 2000,
-                                                 'Sphere': 2000,
-                                                 'Rosenbrock': 2000,
-                                                 'SumSquares': 2000,
-                                                 'Rastrigin': 2000,
                                                  'Griewank': 2000,
                                                  'Levy': 2000,
-                                                 'RotatedHyperEllipsoid': 2000})
+                                                 'Rastrigin': 2000,
+                                                 'Rosenbrock': 2000,
+                                                 'RotatedHyperEllipsoid': 2000,
+                                                 'Sphere': 2000,
+                                                 'SumSquares': 2000})
   pol_eval_data = evaluate_policies(pol_func_pairs,
                                     episodes=EPISODES)
   write_to_csv(pol_eval_data,
-               file_name='td3_ig_data.csv')
+               file_name='td3_data.csv')
