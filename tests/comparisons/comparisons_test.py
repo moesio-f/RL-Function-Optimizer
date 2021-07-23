@@ -1,12 +1,13 @@
 """Comparisons between trained agents."""
 
-import csv
 import os
-from collections import namedtuple
+from typing import List, NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+import pandas as pd
+
 from tf_agents.environments import tf_environment
 from tf_agents.environments import tf_py_environment
 from tf_agents.environments import wrappers
@@ -18,11 +19,11 @@ from functions import numpy_functions as npf
 
 MODELS_DIR = '../models'
 
-
-class Trajectory(namedtuple('Trajectory', (
-      'list_best_values', 'name', 'best_iteration', 'best_position'))):
-  pass
-
+class Trajectory(NamedTuple):
+  list_best_values: np.ndarray
+  name: str
+  best_iteration: int
+  best_position: np.ndarray
 
 def plot_trajectories(trajectories: [Trajectory],
                       function: base_functions.Function,
@@ -56,17 +57,13 @@ def plot_trajectories(trajectories: [Trajectory],
   plt.show()
 
 
-def write_to_csv(trajectories: [Trajectory],
+def write_to_csv(trajectories: List[Trajectory],
                  function: base_functions.Function,
                  dims: int):
-  for trajectory in trajectories:
-    with open(f'{function.name}_{str(dims)}_{trajectory.name}_convergence.csv',
-              'w', newline='') as file:
-      writer = csv.writer(file)
-      writer.writerow(['iteration', 'mean_objective_value'])
-      for it, mean_obj_value in enumerate(trajectory.list_best_values):
-        writer.writerow([it, mean_obj_value])
-
+  file_name = f'{function.name}_{dims}_convergence.csv'
+  data = pd.DataFrame({
+    traj.name: traj.list_best_values for traj in trajectories})
+  data.to_csv(file_name, index_label='iteration')
 
 def run_episode(tf_eval_env: tf_environment.TFEnvironment,
                 policy: tf_policy.TFPolicy,
@@ -162,23 +159,23 @@ if __name__ == '__main__':
     TF_ENV = tf_py_environment.TFPyEnvironment(environment=ENV)
 
     reinforce_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'REINFORCE-BL/' + f'{DIMS}D/' + FUNCTION.name))
+      os.path.join(MODELS_DIR, 'REINFORCE-BL', DIMS+'D', FUNCTION.name))
     reinforce_trajectories: [Trajectory] = []
 
     sac_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'SAC-AAT/' + f'{DIMS}D/' + FUNCTION.name))
+      os.path.join(MODELS_DIR, 'SAC-AAT', DIMS+'D', FUNCTION.name))
     sac_trajectories: [Trajectory] = []
 
     td3_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'TD3/' + f'{DIMS}D/' + FUNCTION.name))
+      os.path.join(MODELS_DIR, 'TD3', DIMS+'D', FUNCTION.name))
     td3_trajectories: [Trajectory] = []
 
     td3_ig_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'TD3-IG/' + f'{DIMS}D/' + FUNCTION.name))
+      os.path.join(MODELS_DIR, 'TD3-IG', DIMS+'D', FUNCTION.name))
     td3_ig_trajectories: [Trajectory] = []
 
     ppo_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'PPO-CLIP/' + f'{DIMS}D/' + FUNCTION.name))
+      os.path.join(MODELS_DIR, 'PPO-CLIP', DIMS+'D', FUNCTION.name))
     ppo_trajectories: [Trajectory] = []
 
     for _ in range(EPISODES):
