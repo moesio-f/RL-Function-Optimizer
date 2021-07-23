@@ -19,13 +19,13 @@ from functions import numpy_functions as npf
 
 MODELS_DIR = '../models'
 
-class Trajectory(NamedTuple):
-  list_best_values: np.ndarray
-  name: str
-  best_iteration: int
+class TrajectoryInfo(NamedTuple):
+  algoritm: str
+  improvement: np.ndarray
   best_position: np.ndarray
+  best_iteration: int
 
-def plot_trajectories(trajectories: [Trajectory],
+def plot_trajectories(trajectories: [TrajectoryInfo],
                       function: base_functions.Function,
                       dims: int,
                       save_to_file: bool = True):
@@ -33,9 +33,9 @@ def plot_trajectories(trajectories: [Trajectory],
   _, ax = plt.subplots(figsize=(18.0, 10.0,))
 
   for traj in trajectories:
-    ax.plot(traj.list_best_values,
-            label='{0} | Best value: {1}'.format(traj.name,
-                                                 traj.list_best_values[-1]))
+    ax.plot(traj.improvement,
+            label='{0} | Best value: {1}'.format(traj.algoritm,
+                                                 traj.improvement[-1]))
 
   ax.set(xlabel="Iterations",
          ylabel="Best objective value",
@@ -57,18 +57,18 @@ def plot_trajectories(trajectories: [Trajectory],
   plt.show()
 
 
-def write_to_csv(trajectories: List[Trajectory],
+def write_to_csv(trajectories: List[TrajectoryInfo],
                  function: base_functions.Function,
                  dims: int):
   file_name = f'{function.name}_{dims}_convergence.csv'
   data = pd.DataFrame({
-    traj.name: traj.list_best_values for traj in trajectories})
+    traj.algoritm: traj.improvement for traj in trajectories})
   data.to_csv(file_name, index_label='iteration')
 
 def run_episode(tf_eval_env: tf_environment.TFEnvironment,
                 policy: tf_policy.TFPolicy,
                 trajectory_name: str,
-                function: base_functions.Function) -> Trajectory:
+                function: base_functions.Function) -> TrajectoryInfo:
   # pylint: disable=missing-docstring
   time_step = tf_eval_env.current_time_step()
   done = False
@@ -96,10 +96,11 @@ def run_episode(tf_eval_env: tf_environment.TFEnvironment,
     best_values_at_it.append(best_solution)
     done = time_step.is_last()
 
-  return Trajectory(list_best_values=best_values_at_it,
-                    name=trajectory_name,
-                    best_iteration=best_it,
-                    best_position=best_pos)
+  return TrajectoryInfo(
+    algoritm = trajectory_name,
+    improvement = best_values_at_it,
+    best_iteration = best_it,
+    best_position = best_pos)
 
 
 def run_rl_agent(policy: tf_policy.TFPolicy,
@@ -107,7 +108,7 @@ def run_rl_agent(policy: tf_policy.TFPolicy,
                  num_steps: int,
                  function: base_functions.Function,
                  dims: int,
-                 initial_time_step) -> Trajectory:
+                 initial_time_step) -> TrajectoryInfo:
   # pylint: disable=missing-docstring
   # Como as policies já estão treinadas, não tem problema remover o clip da
   # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas os
@@ -124,24 +125,23 @@ def run_rl_agent(policy: tf_policy.TFPolicy,
                      function=function)
 
 
-def get_average_trajectory(trajectories: [Trajectory]):
-  # pylint: disable=missing-docstring
-  best_values = []
-  best_iterations = []
-  best_positions = []
-  name = trajectories[0].name
+def get_average_trajectory(training_results: List[TrajectoryInfo]):
+  """Return the average of results for one algoritm"""
+  
+  improvement = [train.improvement for train in training_results]
+  improvement = np.mean(np.array(improvement, np.float32), axis=0)
 
-  for traj in trajectories:
-    best_values.append(traj.list_best_values)
-    best_iterations.append(traj.best_iteration)
-    best_positions.append(traj.best_position)
+  best_iter = [train.best_iteration for train in training_results]
+  best_iter = np.mean(np.array(best_iter), axis=0).astype(np.int32)
 
-  return Trajectory(
-    list_best_values=np.mean(np.array(best_values, dtype=np.float32), axis=0),
-    best_iteration=np.mean(np.array(best_iterations, dtype=np.int32),
-                           axis=0).astype(np.int32),
-    best_position=np.mean(np.array(best_positions, dtype=np.float32), axis=0),
-    name=name)
+  best_pos = [train.best_position for train in training_results]
+  best_pos = np.mean(np.array(best_pos, np.float32), axis=0)
+
+  return TrajectoryInfo(
+    algoritm = training_results[0].algoritm,
+    improvement = improvement,
+    best_iteration = best_iter,
+    best_position = best_pos)
 
 
 if __name__ == '__main__':
@@ -160,23 +160,23 @@ if __name__ == '__main__':
 
     reinforce_policy = tf.compat.v2.saved_model.load(
       os.path.join(MODELS_DIR, 'REINFORCE-BL', DIMS+'D', FUNCTION.name))
-    reinforce_trajectories: [Trajectory] = []
+    reinforce_trajectories: [TrajectoryInfo] = []
 
     sac_policy = tf.compat.v2.saved_model.load(
       os.path.join(MODELS_DIR, 'SAC-AAT', DIMS+'D', FUNCTION.name))
-    sac_trajectories: [Trajectory] = []
+    sac_trajectories: [TrajectoryInfo] = []
 
     td3_policy = tf.compat.v2.saved_model.load(
       os.path.join(MODELS_DIR, 'TD3', DIMS+'D', FUNCTION.name))
-    td3_trajectories: [Trajectory] = []
+    td3_trajectories: [TrajectoryInfo] = []
 
     td3_ig_policy = tf.compat.v2.saved_model.load(
       os.path.join(MODELS_DIR, 'TD3-IG', DIMS+'D', FUNCTION.name))
-    td3_ig_trajectories: [Trajectory] = []
+    td3_ig_trajectories: [TrajectoryInfo] = []
 
     ppo_policy = tf.compat.v2.saved_model.load(
       os.path.join(MODELS_DIR, 'PPO-CLIP', DIMS+'D', FUNCTION.name))
-    ppo_trajectories: [Trajectory] = []
+    ppo_trajectories: [TrajectoryInfo] = []
 
     for _ in range(EPISODES):
       initial_ts = TF_ENV.reset()
