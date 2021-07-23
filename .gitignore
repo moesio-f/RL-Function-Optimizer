@@ -6,9 +6,10 @@
 *.xml
 *.iml
 
-# Arquivos/Pastas do PyCharm
+# Arquivos/Pastas do PyCharm/VSCode
 .idea/
 __pycache__/
+.vscode
 venv
 
 # Arquivos/Pastas locais
