@@ -11,7 +11,7 @@ import pandas as pd
 from tf_agents.environments import tf_environment
 from tf_agents.environments import tf_py_environment
 from tf_agents.environments import wrappers
-from tf_agents.policies import tf_policy
+from tf_agents.policies import tf_policy, random_tf_policy
 
 from environments import py_function_environment as py_fun_env
 from functions import base as base_functions
@@ -54,7 +54,8 @@ def plot_trajectories(trajectories: [TrajectoryInfo],
   if save_to_file:
     plt.savefig(fname='{0}-{1}dims-comparison.png'.format(function.name, dims),
                 bbox_inches='tight')
-  plt.show()
+  else:
+    plt.show()
 
 
 def write_to_csv(trajectories: List[TrajectoryInfo],
@@ -108,12 +109,13 @@ def run_rl_agent(policy: tf_policy.TFPolicy,
                  num_steps: int,
                  function: base_functions.Function,
                  dims: int,
-                 initial_time_step) -> TrajectoryInfo:
+                 initial_time_step,
+                 clip_actions=False) -> TrajectoryInfo:
   # pylint: disable=missing-docstring
   # Como as policies já estão treinadas, não tem problema remover o clip da
   # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas os
   # specs que são diferentes.
-  env = py_fun_env.PyFunctionEnvironment(function, dims, clip_actions=False)
+  env = py_fun_env.PyFunctionEnvironment(function, dims, clip_actions=clip_actions)
   env = wrappers.TimeLimit(env, duration=num_steps)
 
   tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
@@ -149,34 +151,33 @@ if __name__ == '__main__':
   STEPS = 500
   EPISODES = 100
 
-  for FUNCTION in [npf.Sphere(), npf.Rosenbrock(), npf.SumSquares(),
-                   npf.Ackley(), npf.Levy(), npf.Rastrigin()]:
+  for FUNCTION in [npf.Sphere(), npf.Rosenbrock(), npf.SumSquares(), npf.Griewank(npf.base.Domain(-10, 10)),
+                   npf.Ackley(), npf.Levy(), npf.Rastrigin(), npf.RotatedHyperEllipsoid(npf.base.Domain(-10,10))]:
     # Como as policies já estão treinadas, não tem problema remover o clip da
     # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas
     # os specs que são diferentes.
-    ENV = py_fun_env.PyFunctionEnvironment(FUNCTION, DIMS, clip_actions=False)
+    ENV = py_fun_env.PyFunctionEnvironment(FUNCTION, DIMS, clip_actions=True)
     ENV = wrappers.TimeLimit(ENV, duration=STEPS)
     TF_ENV = tf_py_environment.TFPyEnvironment(environment=ENV)
 
     reinforce_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'REINFORCE-BL', DIMS+'D', FUNCTION.name))
+      os.path.join(MODELS_DIR, 'ReinforceAgent', str(DIMS)+'D', FUNCTION.name))
     reinforce_trajectories: [TrajectoryInfo] = []
 
     sac_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'SAC-AAT', DIMS+'D', FUNCTION.name))
+      os.path.join(MODELS_DIR, 'SacAgent', str(DIMS)+'D', FUNCTION.name))
     sac_trajectories: [TrajectoryInfo] = []
 
     td3_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'TD3', DIMS+'D', FUNCTION.name))
+      os.path.join(MODELS_DIR, 'Td3Agent', str(DIMS)+'D', FUNCTION.name))
     td3_trajectories: [TrajectoryInfo] = []
 
-    td3_ig_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'TD3-IG', DIMS+'D', FUNCTION.name))
-    td3_ig_trajectories: [TrajectoryInfo] = []
-
     ppo_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'PPO-CLIP', DIMS+'D', FUNCTION.name))
+      os.path.join(MODELS_DIR, 'PPOClipAgent', str(DIMS)+'D', FUNCTION.name))
     ppo_trajectories: [TrajectoryInfo] = []
+
+    rand_policy = random_tf_policy.RandomTFPolicy(TF_ENV.time_step_spec(), TF_ENV.action_spec())
+    rand_trajectories = []
 
     for _ in range(EPISODES):
       initial_ts = TF_ENV.reset()
@@ -202,13 +203,6 @@ if __name__ == '__main__':
                                            dims=DIMS,
                                            initial_time_step=initial_ts))
 
-      td3_ig_trajectories.append(run_rl_agent(policy=td3_ig_policy,
-                                              trajectory_name='TD3-IG',
-                                              num_steps=STEPS,
-                                              function=FUNCTION,
-                                              dims=DIMS,
-                                              initial_time_step=initial_ts))
-
       ppo_trajectories.append(run_rl_agent(policy=ppo_policy,
                                            trajectory_name='PPO',
                                            num_steps=STEPS,
@@ -216,13 +210,21 @@ if __name__ == '__main__':
                                            dims=DIMS,
                                            initial_time_step=initial_ts))
 
+      rand_trajectories.append(run_rl_agent(policy=rand_policy,
+                                           trajectory_name='RANDOM',
+                                           num_steps=STEPS,
+                                           function=FUNCTION,
+                                           dims=DIMS,
+                                           initial_time_step=initial_ts,
+                                           clip_actions=True))
+
     avg_reinforce = get_average_trajectory(reinforce_trajectories)
     avg_sac = get_average_trajectory(sac_trajectories)
     avg_td3 = get_average_trajectory(td3_trajectories)
-    avg_td3_ig = get_average_trajectory(td3_ig_trajectories)
     avg_ppo = get_average_trajectory(ppo_trajectories)
+    avg_rand = get_average_trajectory(rand_trajectories)
 
-    plot_trajectories([avg_reinforce, avg_sac, avg_td3, avg_td3_ig, avg_ppo],
+    plot_trajectories([avg_reinforce, avg_sac, avg_td3, avg_ppo, avg_rand],
                       function=FUNCTION, dims=DIMS)
-    write_to_csv([avg_reinforce, avg_sac, avg_td3, avg_td3_ig, avg_ppo],
+    write_to_csv([avg_reinforce, avg_sac, avg_td3, avg_ppo, avg_rand],
                  function=FUNCTION, dims=DIMS)
