@@ -1,8 +1,9 @@
-"""Policies' statistics test."""
+"""Calcula as medidas estatísticas (média, desvio padrão) dos algoritmos
+aprendidos. """
 
 import csv
 import os
-from collections import namedtuple
+from typing import List, NamedTuple
 
 import numpy as np
 import tensorflow as tf
@@ -11,102 +12,64 @@ from tf_agents.environments import wrappers
 
 from src.single_agent.environments import py_function_environment as py_fun_env
 from src.functions import numpy_functions as npf
+from src.functions import core
+from src import config
 
-ROOT_DIR = '../models/after-update'  # Alterar para a pasta com os modelos.
+from experiments.evaluation import utils as eval_utils
 
-
-# Representa uma função descrita em sua totalidade
-class FunctionDescription(namedtuple('FunctionDescription',
-                                     ('function',
-                                      'dims',
-                                      'global_minimum'))):
-  pass
+MODELS_DIR = config.POLICIES_DIR
 
 
-# Representa um par de uma função totalmente descrita e uma
-# policy que deve minimizar essa função
-class PolicyFunctionPair(namedtuple('PolicyFunctionPair',
-                                    ('policy',
-                                     'function_description',
-                                     'num_learning_episodes'))):
-  pass
+# Agrupa uma policy e uma função.
+class PolicyAndFunction(NamedTuple):
+  policy: object
+  function: core.Function
 
 
-# Representa os dados obtidos depois de testar
-# uma dada policy numa dada função (Ou seja, um PolicyFunctionPair).
-class PolicyEvaluationData(namedtuple('PolicyEvaluationData',
-                                      ('policy_function_pair',
-                                       'average_best_solution',
-                                       'average_best_solution_time',
-                                       'best_solutions_stddev'))):
-  pass
+# Agrupa as informações necessárias sobre a avaliação da policy.
+class PolicyEvalData(NamedTuple):
+  policy_function: PolicyAndFunction
+  avg_best_solution: float
+  stddev_best_solutions: float
+  avg_best_solution_iteration: int
 
 
-def get_all_functions_descriptions(dims: int) -> [FunctionDescription]:
-  # pylint: disable=missing-docstring
-  functions = npf.list_all_functions()
-  functions_desc: [FunctionDescription] = []
+def load_policies(functions: List[core.Function],
+                  dims: int,
+                  algorithm: str) -> List[PolicyAndFunction]:
+  models_dir = os.path.join(MODELS_DIR, f'{algorithm}')
+  models_dir = os.path.join(models_dir, f'{str(dims)}D')
 
-  # Ackley 0, Rastrigin 0, Griewank 0, Levy 0, Sphere 0, SumSquares 0
-  # Rotated 0, Rosenbrock 0, DixonPrice 0, Zakharov 0
+  pairs: [PolicyAndFunction] = []
 
-  for function in functions:
-    functions_desc.append(FunctionDescription(function=function,
-                                              dims=dims,
-                                              global_minimum=0.0))
-
-  return functions_desc
-
-
-def load_policies_and_functions(functions_desc: [FunctionDescription],
-                                algorithm: str,
-                                dims: int,
-                                num_learning_episodes: dict) -> \
-      [PolicyFunctionPair]:
-  # pylint: disable=missing-docstring
-  root_dir = os.path.join(ROOT_DIR, f'{algorithm}')
-  root_dir = os.path.join(root_dir, f'{str(dims)}D')
-
-  pairs: [PolicyFunctionPair] = []
-
-  for function_desc in functions_desc:
-    policy_dir = os.path.join(root_dir, function_desc.function.name)
-    if os.path.exists(policy_dir) \
-          and function_desc.function.name in num_learning_episodes:
+  for fun in functions:
+    policy_dir = os.path.join(models_dir, fun.name)
+    if os.path.exists(policy_dir):
       policy = tf.compat.v2.saved_model.load(policy_dir)
-      pairs.append(PolicyFunctionPair(policy=policy,
-                                      function_description=function_desc,
-                                      num_learning_episodes=
-                                      num_learning_episodes[
-                                        function_desc.function.name]))
+      pairs.append(PolicyAndFunction(policy, fun))
     else:
-      print('{0} não foi incluído na lista.'.format(
-        function_desc.function.name))
+      print('{0} não foi incluído na lista.'.format(fun.name))
 
   return pairs
 
 
-def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
+def evaluate_policies(policies_functions: List[PolicyAndFunction],
+                      dims: int,
                       steps=500,
-                      episodes=100) -> [PolicyEvaluationData]:
-  # pylint: disable=missing-docstring
-  policies_evaluation_data: [PolicyEvaluationData] = []
-
-  def evaluate_single_policy(
-        policy_function_pair: PolicyFunctionPair) -> PolicyEvaluationData:
+                      episodes=100) -> List[PolicyEvalData]:
+  # Calcula as medidas estáticas para uma única 'PolicyAndFunction'.
+  def evaluate_policy(policy_function: PolicyAndFunction) -> PolicyEvalData:
     nonlocal steps
     nonlocal episodes
+    nonlocal dims
 
-    # Como as policies já estão treinadas, não tem problema remover o clip da
-    # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas
-    # os specs que são diferentes.
     env = py_fun_env.PyFunctionEnvironment(
-      function=policy_function_pair.function_description.function,
-      dims=policy_function_pair.function_description.dims, clip_actions=False)
+      function=policy_function.function,
+      dims=dims)
     env = wrappers.TimeLimit(env=env, duration=steps)
     tf_env = tf_py_environment.TFPyEnvironment(environment=env)
 
-    policy = policy_function_pair.policy
+    policy = policy_function.policy
 
     best_solutions: [np.float32] = []
     best_solutions_iterations: [int] = []
@@ -134,65 +97,71 @@ def evaluate_policies(policies_functions_pair: [PolicyFunctionPair],
       best_solutions.append(best_solution_ep)
       best_solutions_iterations.append(best_it_ep)
 
-    avg_best_solution = np.mean(best_solutions)
-    avg_best_solution_time = np.rint(np.mean(best_solutions_iterations)).astype(
-      np.int32)
-    stddev_best_solutions = np.std(best_solutions)
+    avg_best_solution = np.mean(best_solutions).astype(np.float32)
+    avg_best_solution_time = np.rint(np.mean(best_solutions_iterations))
+    stddev_best_solutions = np.std(best_solutions).astype(np.float32)
 
-    return PolicyEvaluationData(
-      policy_function_pair=policy_function_pair,
-      average_best_solution=avg_best_solution,
-      average_best_solution_time=avg_best_solution_time,
-      best_solutions_stddev=stddev_best_solutions)
+    return PolicyEvalData(
+      policy_function=policy_function,
+      avg_best_solution=avg_best_solution.item(),
+      stddev_best_solutions=stddev_best_solutions.item(),
+      avg_best_solution_iteration=int(avg_best_solution_time))
 
-  for pair in policies_functions_pair:
-    policies_evaluation_data.append(evaluate_single_policy(pair))
+  policies_evaluation_data = [evaluate_policy(p) for p in policies_functions]
 
   return policies_evaluation_data
 
 
-def write_to_csv(policies_evaluation_data: [PolicyEvaluationData],
+def write_to_csv(policies_evaluation_data: List[PolicyEvalData],
+                 dims: int,
                  file_name: str):
-  # pylint: disable=missing-docstring
   with open(file_name, 'w', newline='') as file:
     writer = csv.writer(file)
     writer.writerow(['Function',
-                     'Dimensions',
-                     'Global Minimum',
-                     'Number Learning Episodes',
-                     'Average Best Solution',
-                     'Average Best Solution Time (Iterations)',
-                     'Stddev of best solutions'])
-    for pol_data in policies_evaluation_data:
-      pol_function_pair = pol_data.policy_function_pair
-      function_desc = pol_function_pair.function_description
-      writer.writerow([function_desc.function.name,
-                       function_desc.dims,
-                       function_desc.global_minimum,
-                       pol_function_pair.num_learning_episodes,
-                       pol_data.average_best_solution,
-                       pol_data.average_best_solution_time,
-                       pol_data.best_solutions_stddev])
+                     'Dims',
+                     'Avg Best Solution',
+                     'Stddev of best solutions',
+                     'Avg Best Solution Iteration'])
+    for data in policies_evaluation_data:
+      writer.writerow([data.policy_function.function.name,
+                       dims,
+                       data.avg_best_solution,
+                       data.stddev_best_solutions,
+                       data.avg_best_solution_iteration])
 
 
 if __name__ == "__main__":
+  # Dimensões das funções.
   DIMS = 30
+  # Quantidade de episódios para o cálculo das medidas.
   EPISODES = 100
+  # Quantidade de iterações.
+  STEPS = 500
+  # Lista com as funções que serão testadas.
+  FUNCTIONS = [npf.Sphere(), npf.Ackley()]
+  # Nome do algoritmo de otimização a ser utilizado:
+  ALGORITHM = 'Td3Agent'
+  """
+  # Carrega as policies (algoritmos de otimização) para cada uma das
+  #   funções 'FUNCTION' em 'FUNCTIONS'.
+  policies_and_functions = load_policies(FUNCTIONS,
+                                         DIMS,
+                                         ALGORITHM)
 
-  functions_descriptions = get_all_functions_descriptions(dims=DIMS)
-  pol_func_pairs = load_policies_and_functions(functions_descriptions,
-                                               algorithm='TD3',
-                                               dims=DIMS,
-                                               num_learning_episodes={
-                                                 'Ackley': 2000,
-                                                 'Griewank': 2000,
-                                                 'Levy': 2000,
-                                                 'Rastrigin': 2000,
-                                                 'Rosenbrock': 2000,
-                                                 'RotatedHyperEllipsoid': 2000,
-                                                 'Sphere': 2000,
-                                                 'SumSquares': 2000})
-  pol_eval_data = evaluate_policies(pol_func_pairs,
-                                    episodes=EPISODES)
-  write_to_csv(pol_eval_data,
-               file_name='td3_data.csv')
+  # Calcula as medidas estatísticas
+  eval_data = evaluate_policies(policies_and_functions,
+                                DIMS,
+                                episodes=EPISODES,
+                                steps=STEPS)
+
+  # Salva os resultados em um csv.
+  write_to_csv(eval_data,
+               DIMS,
+               file_name=f'{ALGORITHM}_{DIMS}D_data.csv')
+
+  # Realiza o teste com os baselines.
+  """
+  eval_utils.evaluate_baselines(functions=FUNCTIONS,
+                                dims=DIMS,
+                                steps=STEPS,
+                                episodes=EPISODES)

@@ -1,6 +1,6 @@
 from typing import List
 
-from src.functions.base import Domain, Function
+from src.functions.core import Domain, Function
 from src.single_agent.utils.render import FunctionDrawer
 import matplotlib.pyplot as plt
 import numpy as np

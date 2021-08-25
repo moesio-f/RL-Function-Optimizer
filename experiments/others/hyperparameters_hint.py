@@ -3,10 +3,10 @@
 import numpy as np
 from numpy import random
 
-from src.functions.base import Function
+from src.functions import core
 
 
-def function_range_estimation(function: Function,
+def function_range_estimation(function: core.Function,
                               dims: int,
                               num_random_samples: int = 300000):
   rng = random.default_rng()

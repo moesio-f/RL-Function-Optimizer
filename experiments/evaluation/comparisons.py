@@ -1,9 +1,8 @@
-"""Comparisons between trained agents."""
+"""Realiza a comparação da convergência com os diferentes algoritmos."""
 
 import os
 from typing import List, NamedTuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import pandas as pd
@@ -11,79 +10,43 @@ import pandas as pd
 from tf_agents.environments import tf_environment
 from tf_agents.environments import tf_py_environment
 from tf_agents.environments import wrappers
-from tf_agents.policies import tf_policy, random_tf_policy
+from tf_agents.policies import tf_policy
 
 from src.single_agent.environments import py_function_environment as py_fun_env
-from src.functions import base as base_functions, numpy_functions as npf
+from src.functions import core
+from src.functions import numpy_functions as npf
+from src import config
+from experiments.evaluation import utils as eval_utils
 
-MODELS_DIR = '../models'
-
-
-class TrajectoryInfo(NamedTuple):
-  algoritm: str
-  improvement: np.ndarray
-  best_position: np.ndarray
-  best_iteration: int
+MODELS_DIR = config.POLICIES_DIR
 
 
-def plot_trajectories(trajectories: [TrajectoryInfo],
-                      function: base_functions.Function,
-                      dims: int,
-                      save_to_file: bool = True):
-  # pylint: disable=missing-docstring
-  _, ax = plt.subplots(figsize=(18.0, 10.0,))
-
-  for traj in trajectories:
-    ax.plot(traj.improvement,
-            label='{0} | Best value: {1}'.format(traj.algoritm,
-                                                 traj.improvement[-1]))
-
-  ax.set(xlabel="Iterations",
-         ylabel="Best objective value",
-         title="{0} ({1}D)".format(function.name, str(dims)))
-
-  ax.set_xscale('symlog', base=10)
-  ax.set_yscale('log', base=10)
-  ax.set_xlim(left=0)
-
-  ax.legend(loc='upper right')
-  ax.grid()
-
-  plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
-           rotation_mode="anchor")
-
-  if save_to_file:
-    plt.savefig(fname='{0}-{1}dims-comparison.png'.format(function.name, dims),
-                bbox_inches='tight')
-  else:
-    plt.show()
+class Trajectory(NamedTuple):
+  list_best_values: np.ndarray
+  name: str
 
 
-def write_to_csv(trajectories: List[TrajectoryInfo],
-                 function: base_functions.Function,
+def write_to_csv(trajectories: List[Trajectory],
+                 function: core.Function,
                  dims: int):
-  file_name = f'{function.name}_{dims}_convergence.csv'
-  data = pd.DataFrame({
-    traj.algoritm: traj.improvement for traj in trajectories})
+  file_name = f'{function.name}_{dims}D_convergence.csv'
+  data = pd.DataFrame({t.name: t.list_best_values for t in trajectories})
   data.to_csv(file_name, index_label='iteration')
 
 
 def run_episode(tf_eval_env: tf_environment.TFEnvironment,
                 policy: tf_policy.TFPolicy,
                 trajectory_name: str,
-                function: base_functions.Function) -> TrajectoryInfo:
-  # pylint: disable=missing-docstring
+                function: core.Function) -> Trajectory:
   time_step = tf_eval_env.current_time_step()
-  done = False
 
   best_pos = time_step.observation.numpy()[0]
   best_solution = function(best_pos)
-  best_it = 0
   best_values_at_it = [best_solution]
 
   it = 0
 
-  while not done:
+  while True:
     it += 1
     action_step = policy.action(time_step)
     time_step = tf_eval_env.step(action_step.action)
@@ -93,32 +56,23 @@ def run_episode(tf_eval_env: tf_environment.TFEnvironment,
 
     if obj_value < best_solution:
       best_solution = obj_value
-      best_pos = pos
-      best_it = it
 
+    if time_step.is_last():
+      break
     best_values_at_it.append(best_solution)
-    done = time_step.is_last()
 
-  return TrajectoryInfo(
-    algoritm=trajectory_name,
-    improvement=best_values_at_it,
-    best_iteration=best_it,
-    best_position=best_pos)
+  return Trajectory(list_best_values=np.array(best_values_at_it,
+                                              dtype=np.float32),
+                    name=trajectory_name)
 
 
 def run_rl_agent(policy: tf_policy.TFPolicy,
                  trajectory_name: str,
                  num_steps: int,
-                 function: base_functions.Function,
+                 function: core.Function,
                  dims: int,
-                 initial_time_step,
-                 clip_actions=False) -> TrajectoryInfo:
-  # pylint: disable=missing-docstring
-  # Como as policies já estão treinadas, não tem problema remover o clip da
-  # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas os
-  # specs que são diferentes.
-  env = py_fun_env.PyFunctionEnvironment(function, dims,
-                                         clip_actions=clip_actions)
+                 initial_time_step) -> Trajectory:
+  env = py_fun_env.PyFunctionEnvironment(function, dims)
   env = wrappers.TimeLimit(env, duration=num_steps)
 
   tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
@@ -130,63 +84,57 @@ def run_rl_agent(policy: tf_policy.TFPolicy,
                      function=function)
 
 
-def get_average_trajectory(training_results: List[TrajectoryInfo]):
-  """Return the average of results for one algoritm"""
+def get_average_trajectory(trajectories: List[Trajectory]):
+  best_values = []
+  name = trajectories[0].name
 
-  improvement = [train.improvement for train in training_results]
-  improvement = np.mean(np.array(improvement, np.float32), axis=0)
+  for t in trajectories:
+    best_values.append(t.list_best_values)
 
-  best_iter = [train.best_iteration for train in training_results]
-  best_iter = np.mean(np.array(best_iter), axis=0).astype(np.int32)
+  return Trajectory(
+    list_best_values=np.mean(np.array(best_values, dtype=np.float32), axis=0),
+    name=name)
 
-  best_pos = [train.best_position for train in training_results]
-  best_pos = np.mean(np.array(best_pos, np.float32), axis=0)
 
-  return TrajectoryInfo(
-    algoritm=training_results[0].algoritm,
-    improvement=improvement,
-    best_iteration=best_iter,
-    best_position=best_pos)
+def policy_path(agent: str, dims: int, fun: core.Function):
+  return os.path.join(MODELS_DIR, agent, str(dims) + 'D', fun.name)
 
 
 if __name__ == '__main__':
+  # Dimensões das funções.
   DIMS = 30
-  STEPS = 500
+  # Quantidade de episódios para o cálculo das medidas.
   EPISODES = 100
+  # Quantidade de interações agente-ambiente.
+  STEPS = 500
+  # Lista com as funções que serão testadas.
+  FUNCTIONS = [npf.Sphere(), npf.Ackley()]
 
-  for FUNCTION in [npf.Sphere(), npf.Rosenbrock(), npf.SumSquares(),
-                   npf.Griewank(
-                         base_functions.Domain(-10, 10)),
-                   npf.Ackley(), npf.Levy(), npf.Rastrigin(),
-                   npf.RotatedHyperEllipsoid(
-                     base_functions.Domain(-10, 10))]:
-    # Como as policies já estão treinadas, não tem problema remover o clip da
-    # ações. Relembrar que o ambiente não realiza checagem nas ações, apenas
-    # os specs que são diferentes.
-    ENV = py_fun_env.PyFunctionEnvironment(FUNCTION, DIMS, clip_actions=True)
+  for FUNCTION in FUNCTIONS:
+    ENV = py_fun_env.PyFunctionEnvironment(FUNCTION, DIMS)
     ENV = wrappers.TimeLimit(ENV, duration=STEPS)
     TF_ENV = tf_py_environment.TFPyEnvironment(environment=ENV)
+    TF_FUNCTION = eval_utils.get_tf_function(FUNCTION)
 
-    reinforce_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'ReinforceAgent', str(DIMS) + 'D',
-                   FUNCTION.name))
-    reinforce_trajectories: [TrajectoryInfo] = []
+    reinforce_policy = tf.compat.v2.saved_model.load(policy_path('ReinforceAgent',
+                                                                 DIMS,
+                                                                 FUNCTION))
+    reinforce_trajectories: List[Trajectory] = []
 
-    sac_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'SacAgent', str(DIMS) + 'D', FUNCTION.name))
-    sac_trajectories: [TrajectoryInfo] = []
+    sac_policy = tf.compat.v2.saved_model.load(policy_path('SacAgent',
+                                                           DIMS,
+                                                           FUNCTION))
+    sac_trajectories: List[Trajectory] = []
 
-    td3_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'Td3Agent', str(DIMS) + 'D', FUNCTION.name))
-    td3_trajectories: [TrajectoryInfo] = []
+    td3_policy = tf.compat.v2.saved_model.load(policy_path('Td3Agent',
+                                                           DIMS,
+                                                           FUNCTION))
+    td3_trajectories: List[Trajectory] = []
 
-    ppo_policy = tf.compat.v2.saved_model.load(
-      os.path.join(MODELS_DIR, 'PPOClipAgent', str(DIMS) + 'D', FUNCTION.name))
-    ppo_trajectories: [TrajectoryInfo] = []
-
-    rand_policy = random_tf_policy.RandomTFPolicy(TF_ENV.time_step_spec(),
-                                                  TF_ENV.action_spec())
-    rand_trajectories = []
+    ppo_policy = tf.compat.v2.saved_model.load(policy_path('PPOClipAgent',
+                                                           DIMS,
+                                                           FUNCTION))
+    ppo_trajectories: List[Trajectory] = []
 
     for _ in range(EPISODES):
       initial_ts = TF_ENV.reset()
@@ -219,21 +167,11 @@ if __name__ == '__main__':
                                            dims=DIMS,
                                            initial_time_step=initial_ts))
 
-      rand_trajectories.append(run_rl_agent(policy=rand_policy,
-                                            trajectory_name='RANDOM',
-                                            num_steps=STEPS,
-                                            function=FUNCTION,
-                                            dims=DIMS,
-                                            initial_time_step=initial_ts,
-                                            clip_actions=True))
-
     avg_reinforce = get_average_trajectory(reinforce_trajectories)
     avg_sac = get_average_trajectory(sac_trajectories)
     avg_td3 = get_average_trajectory(td3_trajectories)
     avg_ppo = get_average_trajectory(ppo_trajectories)
-    avg_rand = get_average_trajectory(rand_trajectories)
 
-    plot_trajectories([avg_reinforce, avg_sac, avg_td3, avg_ppo, avg_rand],
-                      function=FUNCTION, dims=DIMS)
-    write_to_csv([avg_reinforce, avg_sac, avg_td3, avg_ppo, avg_rand],
-                 function=FUNCTION, dims=DIMS)
+    write_to_csv([avg_reinforce, avg_sac, avg_td3, avg_ppo],
+                 function=FUNCTION,
+                 dims=DIMS)

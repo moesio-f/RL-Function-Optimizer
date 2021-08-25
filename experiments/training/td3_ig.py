@@ -14,25 +14,25 @@ from src.single_agent.agents import td3_inverting_gradients as td3_ig
 from src.single_agent.environments import py_function_environment as py_fun_env
 from src.functions import numpy_functions as npf
 from src.single_agent.networks import linear_actor_network as linear_actor_net
-from src.single_agent.utils import evaluation
+
+from experiments.evaluation import utils as eval_utils
+from experiments.training import utils as training_utils
 
 if __name__ == '__main__':
-  num_episodes = 2000
-  initial_collect_episodes = 20
-  collect_steps_per_iteration = 1
+  num_episodes = 2000  # Quantidade de episódios de treino.
+  initial_collect_episodes = 20  # Quantidade de episódios de coleta inicial.
+  collect_steps_per_iteration = 1  # Quantidade de passos por iteração.
 
-  # Hiperparametros da memória de replay
-  buffer_size = 1000000
-  batch_size = 256
+  buffer_size = 1000000  # Capacidade do replay buffer.
+  batch_size = 256  # Tamanho do batch.
 
-  # Hiperparametros do Agente
-  actor_lr = 3e-4
-  critic_lr = 3e-4
-  tau = 5e-3
+  actor_lr = 3e-4  # Taxa de aprendizagem para o 'actor'.
+  critic_lr = 3e-4  # Taxa de aprendizagem para o 'critic'.
+  tau = 5e-3  # Valor para o 'tau'.
   actor_update_period = 2
   target_update_period = 2
 
-  discount = 0.99
+  discount = 0.99  # Fator de desconto.
 
   exploration_noise_std = 0.5
   exploration_noise_std_end = 0.1
@@ -40,20 +40,19 @@ if __name__ == '__main__':
   target_policy_noise = 0.2
   target_policy_noise_clip = 0.5
 
-  # Actor Network
-  fc_layer_params = [256, 256]
+  actor_layer_params = [256, 256]  # Camadas e unidades para a 'actor network'.
 
-  # Critic Network
-  action_fc_layer_params = None
-  observation_fc_layer_params = None
-  joint_fc_layer_params = [256, 256]
+  critic_action_fc_layer_params = None
+  critic_observation_fc_layer_params = None
+  # Camadas e unidades para a 'critic network'.
+  critic_fc_layer_params = [256, 256]
 
   # Criando o Env.
   steps = 250
   steps_eval = 500
 
-  dims = 2
-  function = npf.Sphere()
+  dims = 30
+  function = npf.Ackley()
 
   env_training = py_fun_env.PyFunctionEnvironment(function=function,
                                                   dims=dims,
@@ -79,13 +78,13 @@ if __name__ == '__main__':
   actor_network = linear_actor_net.LinearActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
-    fc_layer_params=fc_layer_params,
+    fc_layer_params=actor_layer_params,
     activation_fn=tf.keras.activations.relu)
   critic_network = critic_net.CriticNetwork(
     input_tensor_spec=(obs_spec, act_spec),
-    observation_fc_layer_params=observation_fc_layer_params,
-    action_fc_layer_params=action_fc_layer_params,
-    joint_fc_layer_params=joint_fc_layer_params,
+    observation_fc_layer_params=critic_observation_fc_layer_params,
+    action_fc_layer_params=critic_action_fc_layer_params,
+    joint_fc_layer_params=critic_fc_layer_params,
     activation_fn=tf.keras.activations.relu,
     output_activation_fn=tf.keras.activations.linear)
 
@@ -179,11 +178,19 @@ if __name__ == '__main__':
           'Best solution on episode: {1} '
           'Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
-  # Realizando os testes do agente (Policy e Collect Policy) para 50 episódios.
-  evaluation.evaluate_agent(tf_env_eval,
+  # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
+  # Produz um gráfico de convergência para o agente na função.
+  eval_utils.evaluate_agent(tf_env_eval,
                             agent.policy,
                             function,
                             dims,
-                            name_algorithm='TD3-IG',
-                            save_to_file=True,
-                            verbose=True)
+                            algorithm_name='TD3-IG',
+                            save_to_file=False)
+
+  # Salvamento da policy aprendida.
+  # Pasta de saída: output/TD3-IG-{dims}D-{function.name}/
+  # OBS:. Caso já exista, a saída é sobrescrita.
+  training_utils.save_policy('TD3-IG',
+                             function,
+                             dims,
+                             agent.policy)

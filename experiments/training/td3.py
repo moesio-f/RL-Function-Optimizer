@@ -1,4 +1,4 @@
-"""TD3 agent test on FunctionEnvironment."""
+"""TD3 para aprender um algoritmo de otimização."""
 
 import numpy as np
 import tensorflow as tf
@@ -14,53 +14,49 @@ from tf_agents.utils import common
 
 from src.single_agent.environments import py_function_environment as py_fun_env
 from src.functions import numpy_functions as npf
-from src.single_agent.utils import evaluation
+
+from experiments.evaluation import utils as eval_utils
+from experiments.training import utils as training_utils
 
 if __name__ == '__main__':
-  num_episodes = 2000
-  initial_collect_episodes = 20
-  collect_steps_per_iteration = 1
+  num_episodes = 2000  # Quantidade de episódios de treino.
+  initial_collect_episodes = 20  # Quantidade de episódios de coleta inicial.
+  collect_steps_per_iteration = 1  # Quantidade de passos por iteração.
 
-  # Hiperparametros da memória de replay
-  buffer_size = 1000000
-  batch_size = 256
+  buffer_size = 1000000  # Capacidade do replay buffer.
+  batch_size = 256  # Tamanho do batch.
 
-  # Hiperparametros do Agente
-  actor_lr = 3e-4
-  critic_lr = 3e-4
-  tau = 5e-3
+  actor_lr = 3e-4  # Taxa de aprendizagem para o 'actor'.
+  critic_lr = 3e-4  # Taxa de aprendizagem para o 'critic'.
+  tau = 5e-3  # Valor para o 'tau'.
   actor_update_period = 2
   target_update_period = 2
 
-  discount = 0.99
+  discount = 0.99  # Fator de desconto.
 
   exploration_noise_std = 0.1
   target_policy_noise = 0.2
   target_policy_noise_clip = 0.5
 
-  # Actor Network
-  fc_layer_params = [256, 256]
+  actor_layer_params = [256, 256]  # Camadas e unidades para a 'actor network'.
 
-  # Critic Network
-  action_fc_layer_params = None
-  observation_fc_layer_params = None
-  joint_fc_layer_params = [256, 256]
+  critic_action_fc_layer_params = None
+  critic_observation_fc_layer_params = None
+  # Camadas e unidades para a 'critic network'.
+  critic_fc_layer_params = [256, 256]
 
-  # Criando o Env.
-  steps = 250
-  steps_eval = 500
+  steps = 250  # Quantidade de interações agente-ambiente para treino.
+  steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
-  dims = 2
-  function = npf.Sphere()
+  dims = 30  # Dimensões da função.
+  function = npf.Ackley()
 
   env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims,
-                                                  clip_actions=True)
+                                                  dims=dims)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
   env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims,
-                                              clip_actions=True)
+                                              dims=dims)
   env_eval = wrappers.TimeLimit(env=env_eval, duration=steps_eval)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
@@ -70,21 +66,19 @@ if __name__ == '__main__':
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
-  # Criando as redes.
   actor_network = actor_net.ActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
-    fc_layer_params=fc_layer_params,
+    fc_layer_params=actor_layer_params,
     activation_fn=tf.keras.activations.relu)
   critic_network = critic_net.CriticNetwork(
     input_tensor_spec=(obs_spec, act_spec),
-    observation_fc_layer_params=observation_fc_layer_params,
-    action_fc_layer_params=action_fc_layer_params,
-    joint_fc_layer_params=joint_fc_layer_params,
+    observation_fc_layer_params=critic_observation_fc_layer_params,
+    action_fc_layer_params=critic_action_fc_layer_params,
+    joint_fc_layer_params=critic_fc_layer_params,
     activation_fn=tf.keras.activations.relu,
     output_activation_fn=tf.keras.activations.linear)
 
-  # Criando o agente.
   actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
   critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
 
@@ -108,13 +102,11 @@ if __name__ == '__main__':
 
   agent.initialize()
 
-  # Replay buffer
   replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
     data_spec=agent.collect_data_spec,
     batch_size=tf_env_training.batch_size,
     max_length=buffer_size)
 
-  # Criando o Driver.
   driver = dy_sd.DynamicStepDriver(env=tf_env_training,
                                    policy=agent.collect_policy,
                                    observers=[replay_buffer.add_batch],
@@ -126,26 +118,22 @@ if __name__ == '__main__':
     observers=[replay_buffer.add_batch],
     num_steps=collect_steps_per_iteration)
 
-  # Convertendo principais funções para tf.function's (Graph Mode)
   initial_collect_driver.run = common.function(initial_collect_driver.run)
   driver.run = common.function(driver.run)
   agent.train = common.function(agent.train)
 
-  # Realizando coleta inicial.
   for _ in range(initial_collect_episodes):
     done = False
     while not done:
       time_step, _ = initial_collect_driver.run()
       done = time_step.is_last()
 
-  # Criando o dataset.
   dataset = replay_buffer.as_dataset(
     sample_batch_size=batch_size,
     num_steps=2).prefetch(64)
 
   iterator = iter(dataset)
 
-  # Treinamento do Agente
   agent.train_step_counter.assign(0)
 
   for ep in range(num_episodes):
@@ -157,7 +145,6 @@ if __name__ == '__main__':
       experience, unused_info = next(iterator)
       agent.train(experience)
 
-      # Acessando indíce 0 por conta da dimensão extra (batch)
       obj_value = driver.env.get_info().objective_value[0]
 
       if obj_value < best_solution:
@@ -170,12 +157,19 @@ if __name__ == '__main__':
           'Best solution on episode: {1} '
           'Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
-  # Realizando os testes do agente (Policy e Collect Policy) para 50 episódios.
-  evaluation.evaluate_agent(tf_env_eval,
+  # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
+  # Produz um gráfico de convergência para o agente na função.
+  eval_utils.evaluate_agent(tf_env_eval,
                             agent.policy,
                             function,
                             dims,
-                            name_algorithm='TD3',
-                            save_to_file=True,
-                            verbose=True)
+                            algorithm_name='TD3',
+                            save_to_file=False)
 
+  # Salvamento da policy aprendida.
+  # Pasta de saída: output/TD3-{dims}D-{function.name}/
+  # OBS:. Caso já exista, a saída é sobrescrita.
+  training_utils.save_policy('TD3',
+                             function,
+                             dims,
+                             agent.policy)

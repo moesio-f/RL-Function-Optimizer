@@ -1,4 +1,4 @@
-"""PyEnvironments that implement mathematical functions as environments."""
+"""Ambiente utilizado para a minimização de funções matemáticas com RL."""
 
 import collections
 
@@ -8,36 +8,35 @@ from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
-import src.functions.base
+from src.functions import core
 
+# Quantidade máxima de iterações entre o agente e ambiente.
 MAX_STEPS = 50000
 
 
 class FunctionEnvironmentInfo(
   collections.namedtuple('FunctionEnvironmentInfo',
                          ('position', 'objective_value'))):
+  """Representa algumas informações úteis sobre o ambiente.
+  'position' representa a última posição do agente na função (x).
+  'objective_value' representa o valor da função nessa posição (f(x)).
+  """
   pass
 
 
 class PyFunctionEnvironment(py_environment.PyEnvironment):
-  """Single-agent function environment.
-  Given a function f: D -> I, where D is a subset of R^d
-  and I is a subset of R, the environment's specs are as follows:
-    the observations (s in D) are positions in the domain and have shape (d);
-    the actions (a in D) are the possible steps and have shape (d);
-    the rewards are r = -f(s + a) and have shape (1);
-
-  The environment resets after every 500000 iterations.
-  Every new state (position), s + a, is in the domain (clipped when needed).
-  Actions can be restricted: ai in [min, max].
+  """Ambiente para a minização de função.
+  Dada uma função f: D -> I, onde D é um subonjunto de R^d
+  e I é um subconjunto de R, as especificações do ambiente são:
+    as observações (s em D) são posições do domínio;
+    as ações (a em R^d) são os possíveis passos;
+    as recompensas são r = -f(s + a).
   """
-  def __init__(self, function: src.functions.base.Function, dims,
-               clip_actions: bool = False) -> None:
+  def __init__(self, function: core.Function, dims,
+               clip_actions: bool = True):
     super().__init__()
     self._rng = default_rng()
     self.func = function
-    # TODO(4a5463e): Corrigir possíveis erros no Drawer. (Erro para Griewank
-    #  e SumSquares) self.drawer = FunctionDrawer(function)
     self._dims = dims
 
     self._episode_ended = False
@@ -114,14 +113,6 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     return ts.restart(self._state)
 
   def render(self, mode: str = 'human'):
-    # TODO(4a5463e): Revisar Drawer.
-    """
-    if self._steps_taken == 0:
-        self.drawer.clear()
-        self.drawer.draw_mesh(alpha=0.4, cmap='coolwarm')
-        self.drawer.scatter(self._state[:2])
-    self.drawer.update_scatter(self._state[:2])
-    """
     raise NotImplementedError("Not Implemented yet.")
 
   def __initial_state(self) -> np.ndarray:
@@ -130,4 +121,3 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
                               low=domain_min,
                               high=domain_max)
     return state.astype(dtype=np.float32, copy=False)
-

@@ -6,14 +6,14 @@ from tf_agents.typing import types
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
 
-import src.functions.base
+from src.functions import core
 
 
 class MultiAgentFunctionEnv(py_environment.PyEnvironment):
   """Multi-agent function environment."""
 
   def __init__(self,
-               function: src.functions.base.Function,
+               function: core.Function,
                dims: int,
                n_agents: int,
                clip_actions: bool = False) -> None:

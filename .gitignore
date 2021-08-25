@@ -16,4 +16,5 @@ venv
 Testes/
 weights/
 experiments/models
+experiments/policies
 pylintrc
