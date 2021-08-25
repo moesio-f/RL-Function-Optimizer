@@ -12,7 +12,7 @@ from src.functions.numpy_functions import Sphere
 
 
 def get_result_dir(folder_name='results', index=None):
-  '''Get result directory, if doesn't exist create one
+  """Get result directory, if doesn't exist create one
     Args:
       index: if None create the next index folder to hold results
     directory structure:
@@ -20,7 +20,7 @@ def get_result_dir(folder_name='results', index=None):
       results/2/models/
       ...
     Returns: a tuple with root and models directory
-    '''
+    """
 
   def get_latest_index_dir(dir):
     index = 1

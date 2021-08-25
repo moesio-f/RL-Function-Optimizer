@@ -2,11 +2,14 @@
 
 import numpy as np
 
-from src import functions as functions_np, functions as functions_tf
-import src.functions.base as base
+from src.functions import numpy_functions as functions_np
+from src.functions import tensorflow_functions as functions_tf
+from src.functions import base
 
 
 def get_common_function(name, in_tensorflow=False) -> base.Function:
+  function = None
+
   if in_tensorflow:
     function = next(
       (f for f in functions_tf.list_all_functions() if f.name == name), None)
