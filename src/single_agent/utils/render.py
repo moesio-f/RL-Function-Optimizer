@@ -3,7 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from src.functions.base import Function
+from src.functions import core
 
 
 # TODO: Atualizar classes para renderizar os ambientes
@@ -21,12 +21,12 @@ class FunctionDrawer(object):
       note: bigger numbers make interactive window slow
   """
 
-  def __init__(self, function: Function, resolution=80):
+  def __init__(self, function: core.Function, resolution=80):
     self.set_mesh(function, resolution)
     self.points = []
 
   #  Set internal mesh to a new function
-  def set_mesh(self, function: Function, resolution=80):
+  def set_mesh(self, function: core.Function, resolution=80):
     self.function = function
     self.fig = plt.figure()
     self.ax = self.fig.add_subplot(projection='3d')

@@ -7,7 +7,7 @@ from deap import base
 from deap import creator
 from deap import tools
 
-from src import functions as npf
+from src.functions import numpy_functions as npf
 
 dims = 200
 function = npf.Sphere()

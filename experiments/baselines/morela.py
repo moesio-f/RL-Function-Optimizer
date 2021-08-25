@@ -5,7 +5,7 @@ import copy
 import numpy as np
 from numpy import random as rand
 
-from src import functions as npf
+from src.functions import numpy_functions as npf
 
 
 class TableRow:

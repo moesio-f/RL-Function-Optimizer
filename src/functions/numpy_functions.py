@@ -1,15 +1,15 @@
-"""Numpy implementation of many different functions."""
+"""Implementação das diferentes funções de benchmark em NumPy."""
 
 import numpy as np
 
-import src.functions.base as base
+from src.functions import core
 
 
-class Ackley(base.Function):
+class Ackley(core.Function):
   """Ackley function as defined in:
   https://www.sfu.ca/~ssurjano/ackley.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-32.768, max=32.768),
+  def __init__(self, domain: core.Domain = core.Domain(min=-32.768, max=32.768),
                a=20, b=0.2, c=2 * np.math.pi):
     super().__init__(domain)
     self._a = a
@@ -37,11 +37,11 @@ class Ackley(base.Function):
     return self._c
 
 
-class Griewank(base.Function):
+class Griewank(core.Function):
   """Griewank function as defined in:
   https://www.sfu.ca/~ssurjano/griewank.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-600.0, max=600.0)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-600.0, max=600.0)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -55,11 +55,11 @@ class Griewank(base.Function):
     return griewank_sum - prod + 1
 
 
-class Rastrigin(base.Function):
+class Rastrigin(core.Function):
   """Rastrigin function as defined in:
   https://www.sfu.ca/~ssurjano/rastr.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-5.12, max=5.12)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-5.12, max=5.12)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -70,11 +70,11 @@ class Rastrigin(base.Function):
     return 10 * d + np.sum(x ** 2 - 10 * np.cos(x * 2 * np.math.pi), axis=0)
 
 
-class Levy(base.Function):
+class Levy(core.Function):
   """Levy function as defined in:
   https://www.sfu.ca/~ssurjano/levy.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-10.0, max=10.0)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-10.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -94,11 +94,11 @@ class Levy(base.Function):
     return term1 + levy_sum + term3
 
 
-class Rosenbrock(base.Function):
+class Rosenbrock(core.Function):
   """Rosenbrock function as defined in:
   https://www.sfu.ca/~ssurjano/rosen.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-5.0, max=10.0)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-5.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -110,11 +110,11 @@ class Rosenbrock(base.Function):
     return np.sum(100 * (xnext - xi ** 2) ** 2 + (xi - 1) ** 2, axis=0)
 
 
-class Zakharov(base.Function):
+class Zakharov(core.Function):
   """Zakharov function as defined in:
   https://www.sfu.ca/~ssurjano/zakharov.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-5.0, max=10.0)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-5.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -129,11 +129,11 @@ class Zakharov(base.Function):
     return sum1 + sum2 ** 2 + sum2 ** 4
 
 
-class Bohachevsky(base.Function):
+class Bohachevsky(core.Function):
   """Bohachevsky function (f1, 2 dims only) as defined in:
   https://www.sfu.ca/~ssurjano/boha.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-100.0, max=100.0)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-100.0, max=100.0)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -148,11 +148,11 @@ class Bohachevsky(base.Function):
            0.4 * np.cos(4 * np.pi * x[1]) + 0.7
 
 
-class SumSquares(base.Function):
+class SumSquares(core.Function):
   """SumSquares function as defined in:
   https://www.sfu.ca/~ssurjano/sumsqu.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-10.0, max=10.0)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-10.0, max=10.0)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -164,11 +164,11 @@ class SumSquares(base.Function):
     return np.sum((x ** 2) * mul, axis=0)
 
 
-class Sphere(base.Function):
+class Sphere(core.Function):
   """Sphere function as defined in:
   https://www.sfu.ca/~ssurjano/spheref.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(min=-5.12, max=5.12)):
+  def __init__(self, domain: core.Domain = core.Domain(min=-5.12, max=5.12)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -178,13 +178,13 @@ class Sphere(base.Function):
     return np.sum(x * x, axis=0)
 
 
-class RotatedHyperEllipsoid(base.Function):
+class RotatedHyperEllipsoid(core.Function):
   """Rotated Hyper-Ellipsoid function as defined in:
   https://www.sfu.ca/~ssurjano/rothyp.html.
   TODO: Melhorar implementação."""
 
   def __init__(self,
-               domain: base.Domain = base.Domain(min=-65.536, max=65.536)):
+               domain: core.Domain = core.Domain(min=-65.536, max=65.536)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -197,11 +197,11 @@ class RotatedHyperEllipsoid(base.Function):
                   dtype=np.float32, axis=0)
 
 
-class DixonPrice(base.Function):
+class DixonPrice(core.Function):
   """Dixon-Price function as defined in:
   https://www.sfu.ca/~ssurjano/dixonpr.html."""
 
-  def __init__(self, domain: base.Domain = base.Domain(-10, 10)):
+  def __init__(self, domain: core.Domain = core.Domain(-10, 10)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
@@ -219,7 +219,7 @@ class DixonPrice(base.Function):
     return term1 + term2
 
 
-def list_all_functions() -> [base.Function]:
+def list_all_functions() -> [core.Function]:
   return [Ackley(), Griewank(), Rastrigin(), Levy(), Rosenbrock(), Zakharov(),
           Bohachevsky(), SumSquares(), Sphere(), RotatedHyperEllipsoid(),
           DixonPrice()]

@@ -15,31 +15,33 @@ from tf_agents.utils import common
 
 from src.single_agent.environments import py_function_environment as py_func_env
 from src.functions import numpy_functions as npf
-from src.single_agent.utils import evaluation
+
+from experiments.evaluation import utils as eval_utils
+from experiments.training import utils as training_utils
 
 
 def main(_):
-  num_episodes = 2000
-  replay_buffer_capacity = 251  # Per-environment
-  num_epochs = 25
-  num_parallel_environments = 15
+  num_episodes = 2000  # Quantidade de episódios de treino.
+  replay_buffer_capacity = 251  # Tamanho do replay buffer (por ambiente).
+  num_epochs = 25  # Quantidade de épocas.
+  num_parallel_environments = 15  # Quantidade de ambientes paralelos.
 
-  learning_rate = 3e-4
-  actor_fc_layers = (256, 256)
-  value_fc_layers = (256, 256)
+  learning_rate = 3e-4  # Taxa de aprendizagem.
+  actor_fc_layers = (256, 256)  # Camadas e unidades para a 'actor network'.
+  value_fc_layers = (256, 256)  # Camadas e unidades para a 'value network'.
 
-  num_eval_episodes = 25
-  eval_interval = 100
-  steps = 250
+  num_eval_episodes = 25  # Quantidade de episódios de avaliação.
+  eval_interval = 100  # Intervalo de avaliação.
+  steps = 250  # Quantidade de interações agente-ambiente para treino.
+  steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
-  dims = 2
+  dims = 30  # Dimensões da função.
   function = npf.Ackley()
 
   tf_env_eval = tf_py_environment.TFPyEnvironment(
     wrappers.TimeLimit(env=py_func_env.PyFunctionEnvironment(function=function,
-                                                             dims=dims,
-                                                             clip_actions=True),
-                       duration=steps))
+                                                             dims=dims),
+                       duration=steps_eval))
 
   def evaluate_current_policy(policy, episodes=num_eval_episodes):
     total_return = tf.Variable([0.])
@@ -78,8 +80,7 @@ def main(_):
   tf_env_training = tf_py_environment.TFPyEnvironment(
     parallel_py_environment.ParallelPyEnvironment(
       [lambda: wrappers.TimeLimit(
-        env=py_func_env.PyFunctionEnvironment(function=function, dims=dims,
-                                              clip_actions=True),
+        env=py_func_env.PyFunctionEnvironment(function=function, dims=dims),
         duration=steps)] * num_parallel_environments))
 
   actor_net = actor_distribution_network.ActorDistributionNetwork(
@@ -128,6 +129,8 @@ def main(_):
 
     experience = replay_buffer.gather_all()
     agent.train(experience=experience)
+    # Limpando o replay buffer, só são utilizadas experiências do episódio
+    #   atual.
     replay_buffer.clear()
 
     print('episode {0}'.format(ep))
@@ -142,9 +145,23 @@ def main(_):
                                                      episodes=100)
   print('avg_best_solution: {0} avg_return: {1}'.format(avg_best_sol.numpy()[0],
                                                         avg_return.numpy()[0]))
-  evaluation.evaluate_agent(tf_env_eval, agent.policy, function, dims,
-                            name_algorithm='PPO-Clip',
+
+  # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
+  # Produz um gráfico de convergência para o agente na função.
+  eval_utils.evaluate_agent(tf_env_eval,
+                            agent.policy,
+                            function,
+                            dims,
+                            algorithm_name='PPO',
                             save_to_file=False)
+
+  # Salvamento da policy aprendida.
+  # Pasta de saída: output/PPO-{dims}D-{function.name}/
+  # OBS:. Caso já exista, a saída é sobrescrita.
+  training_utils.save_policy('PPO',
+                             function,
+                             dims,
+                             agent.policy)
 
 
 if __name__ == '__main__':

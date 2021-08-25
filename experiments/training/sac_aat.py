@@ -1,4 +1,4 @@
-"""SAC agent test on FunctionEnvironment."""
+"""SAC para aprender um algoritmo de otimização."""
 
 import numpy as np
 import tensorflow as tf
@@ -15,45 +15,44 @@ from tf_agents.utils import common
 
 from src.single_agent.environments import py_function_environment as py_fun_env
 from src.functions import numpy_functions as npf
-from src.single_agent.utils import evaluation
+
+from experiments.evaluation import utils as eval_utils
+from experiments.training import utils as training_utils
 
 if __name__ == '__main__':
-  # Hiperparametros de treino
-  num_episodes = 2000
-  initial_collect_episodes = 20
-  c_steps_per_it = 1
-  replay_buffer_capacity = 1000000
-  batch_size = 256
-  target_update_tau = 5e-3
+  num_episodes = 2000  # Quantidade de episódios de treino.
+  initial_collect_episodes = 20  # Quantidade de episódios de coleta inicial.
+  c_steps_per_it = 1  # Quantidade de passos por iteração.
+
+  replay_buffer_capacity = 1000000  # Capacidade do replay buffer.
+  batch_size = 256  # Tamanho do batch.
+
+  actor_lr = 3e-4  # Taxa de aprendizagem para o 'actor'.
+  critic_lr = 3e-4  # Taxa de aprendizagem para o 'critic'.
+  target_update_tau = 5e-3  # Valor para o 'tau'.
+  alpha_lr = 3e-4
   target_update_period = 2
 
-  # Hiperparametros do Agente
-  actor_lr = 3e-4
-  critic_lr = 3e-4
-  alpha_lr = 3e-4
-  discount = 0.99
+  discount = 0.99  # Fator de desconto.
 
-  # Networks
-  actor_layer_params = [256, 256]
+  actor_layer_params = [256, 256]  # Camadas e unidades para a 'actor network'.
   critic_observation_layer_params = None
   critic_action_layer_params = None
+  # Camadas e unidades para a 'critic network'.
   critic_joint_layer_params = [256, 256]
 
-  # Envs
-  steps = 250
-  steps_eval = 500
+  steps = 250  # Quantidade de interações agente-ambiente para treino.
+  steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
-  dims = 2
-  function = npf.Sphere()
+  dims = 30  # Dimensões da função.
+  function = npf.Ackley()
 
   env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims,
-                                                  clip_actions=True)
+                                                  dims=dims)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
   env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims,
-                                              clip_actions=True)
+                                              dims=dims)
   env_eval = wrappers.TimeLimit(env=env_eval, duration=steps)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
@@ -63,7 +62,6 @@ if __name__ == '__main__':
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
-  # Creating networks
   actor_network = actor_net.ActorDistributionNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
@@ -81,7 +79,6 @@ if __name__ == '__main__':
     kernel_initializer='glorot_uniform',
     last_kernel_initializer='glorot_uniform')
 
-  # Creating agent
   actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
   critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
   alpha_optimizer = tf.keras.optimizers.Adam(learning_rate=alpha_lr)
@@ -103,13 +100,11 @@ if __name__ == '__main__':
 
   agent.initialize()
 
-  # Data Collection and Replay Buffer
   replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
     data_spec=agent.collect_data_spec,
     batch_size=tf_env_training.batch_size,
     max_length=replay_buffer_capacity)
 
-  # Creating a dataset
   dataset = replay_buffer.as_dataset(
     sample_batch_size=batch_size,
     num_steps=2).prefetch(64)
@@ -135,7 +130,6 @@ if __name__ == '__main__':
       time_step, _ = initial_driver.run()
       done = time_step.is_last()
 
-  # Training
   agent.train = common.function(agent.train)
   agent.train_step_counter.assign(0)
 
@@ -148,7 +142,6 @@ if __name__ == '__main__':
       experience, unused_info = next(iterator)
       agent.train(experience)
 
-      # Acessando indíce 0 por conta da dimensão extra (batch)
       obj_value = driver.env.get_info().objective_value[0]
 
       if obj_value < best_solution:
@@ -161,9 +154,19 @@ if __name__ == '__main__':
           'Best solution on episode: {1} '
           'Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
-  evaluation.evaluate_agent(tf_env_eval,
+  # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
+  # Produz um gráfico de convergência para o agente na função.
+  eval_utils.evaluate_agent(tf_env_eval,
                             agent.policy,
                             function,
                             dims,
-                            name_algorithm='SAC',
-                            save_to_file=True)
+                            algorithm_name='SAC',
+                            save_to_file=False)
+
+  # Salvamento da policy aprendida.
+  # Pasta de saída: output/SAC-{dims}D-{function.name}/
+  # OBS:. Caso já exista, a saída é sobrescrita.
+  training_utils.save_policy('SAC',
+                             function,
+                             dims,
+                             agent.policy)

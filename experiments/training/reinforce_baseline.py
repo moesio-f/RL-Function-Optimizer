@@ -1,4 +1,4 @@
-"""REINFORCE with baseline agent test on FunctionEnvironment."""
+"""REINFORCE para aprender um algoritmo de otimização."""
 
 import tensorflow as tf
 from tf_agents.agents.reinforce import reinforce_agent
@@ -13,36 +13,32 @@ from tf_agents.utils import common
 
 from src.single_agent.environments import py_function_environment as py_fun_env
 from src.functions import numpy_functions as npf
-from src.single_agent.utils import evaluation
+
+from experiments.evaluation import utils as eval_utils
+from experiments.training import utils as training_utils
 
 if __name__ == '__main__':
-  # Hiperparametros de treino
-  num_episodes = 2000
+  num_episodes = 2000  # Quantidade de episódios de treino.
 
-  # Hiperparametros do Agente
-  actor_lr = 3e-4
-  value_lr = 3e-4
-  discount = 0.99
+  actor_lr = 3e-4  # Taxa de aprendizagem para o 'actor'.
+  value_lr = 3e-4  # Taxa de aprendizagem para a 'value network'.
+  discount = 0.99  # Fator de desconto.
 
-  # Networks
-  actor_layer_params = [256, 256]
-  value_layer_params = [256, 256]
+  actor_layer_params = [256, 256]  # Camadas e unidades para a 'actor network'.
+  value_layer_params = [256, 256]  # Camadas e unidades para a 'value network'.
 
-  # Envs
-  steps = 250
-  steps_eval = 500
+  steps = 250  # Quantidade de interações agente-ambiente para treino.
+  steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
-  dims = 2
-  function = npf.Sphere()
+  dims = 30  # Dimensões da função.
+  function = npf.Ackley()
 
   env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims,
-                                                  clip_actions=True)
+                                                  dims=dims)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
   env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims,
-                                              clip_actions=True)
+                                              dims=dims)
   env_eval = wrappers.TimeLimit(env=env_eval, duration=steps)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
@@ -52,7 +48,6 @@ if __name__ == '__main__':
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
-  # Creating networks
   actor_network = actor_net.ActorDistributionNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
@@ -62,7 +57,6 @@ if __name__ == '__main__':
   value_network = value_network.ValueNetwork(input_tensor_spec=obs_spec,
                                              fc_layer_params=value_layer_params)
 
-  # Creating agent
   actor_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=actor_lr)
   value_optimizer = tf.compat.v1.train.AdamOptimizer(learning_rate=value_lr)
 
@@ -79,7 +73,6 @@ if __name__ == '__main__':
 
   agent.initialize()
 
-  # Data Collection and Replay Buffer
   replay_buffer = tf_uniform_replay_buffer.TFUniformReplayBuffer(
     data_spec=agent.collect_data_spec,
     batch_size=tf_env_training.batch_size,
@@ -92,7 +85,6 @@ if __name__ == '__main__':
 
   driver.run = common.function(driver.run)
 
-  # Training
   agent.train = common.function(agent.train)
   agent.train_step_counter.assign(0)
 
@@ -110,8 +102,23 @@ if __name__ == '__main__':
       'Best solution on episode: {1} '
       'Return on episode: {2}'.format(ep, best_solution, ep_rew))
 
+    # Limpando o replay buffer, só são utilizadas experiências do episódio
+    #   atual.
     replay_buffer.clear()
 
-  evaluation.evaluate_agent(tf_env_eval, agent.policy, function, dims,
-                            name_algorithm='REINFORCE-with-Baseline',
+  # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
+  # Produz um gráfico de convergência para o agente na função.
+  eval_utils.evaluate_agent(tf_env_eval,
+                            agent.policy,
+                            function,
+                            dims,
+                            algorithm_name='REINFORCE',
                             save_to_file=False)
+
+  # Salvamento da policy aprendida.
+  # Pasta de saída: output/REINFORCE-{dims}D-{function.name}/
+  # OBS:. Caso já exista, a saída é sobrescrita.
+  training_utils.save_policy('REINFORCE',
+                             function,
+                             dims,
+                             agent.policy)

@@ -1,4 +1,4 @@
-"""Base classes for functions."""
+"""Classes base para todas funções."""
 
 import abc
 import typing
@@ -10,7 +10,7 @@ class Domain(typing.NamedTuple):
 
 
 class Function:
-  """Base class for all functions."""
+  """Classe base para todas funções."""
   def __init__(self, domain: Domain):
     assert domain is not None
     self._domain = domain
@@ -29,7 +29,7 @@ class Function:
 
   @property
   def name(self):
-    return self.__str__()
+    return str(self)
 
   def __str__(self):
     return self.__class__.__name__
