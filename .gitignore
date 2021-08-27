@@ -18,3 +18,4 @@ weights/
 experiments/models
 experiments/policies
 pylintrc
+results
