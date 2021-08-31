@@ -127,8 +127,8 @@ class MADDPG:
         assert len(obs_spaces) == len(act_spaces)
 
         self.num_agents = len(obs_spaces)
-        self.actor_optimizer = tf.keras.optimizers.Adam(alpha) #, clipnorm=0.5)
-        self.critic_optimizer = tf.keras.optimizers.Adam(beta) #, clipnorm=0.5)
+        self.actor_optimizer = tf.keras.optimizers.Adam(alpha, clipnorm=0.5)
+        self.critic_optimizer = tf.keras.optimizers.Adam(beta, clipnorm=0.5)
 
         self.agents = [Agent(obs_spaces, act_spaces, i) for i in range(self.num_agents)]
 
@@ -157,18 +157,21 @@ class MADDPG:
 
         # pass to each agent's target actor is own batch of observations
         new_actions = [agent.target_actor(new_states[i])[0] for i, agent in enumerate(self.agents)]
-        losses = []
+        
+        actor_loss = [0] * self.num_agents
+        critic_loss = [0] * self.num_agents
+
         for i, agent in enumerate(self.agents):
             # Take critic evaluation from new state and taking new actions
             new_critic_value = agent.target_critic(new_states + new_actions)[0]
-            target = rewards[i][:, None] + agent.gamma*new_critic_value
+            target = rewards[i] + agent.gamma*new_critic_value
 
-            critic_loss = agent.train_critic(states, actions, target, self.critic_optimizer)
-            actor_loss = agent.train_actor(states, actions, self.actor_optimizer)
-
+            actor_loss[i] = agent.train_critic(states, actions, target, self.critic_optimizer)
+            critic_loss[i] = agent.train_actor(states, actions, self.actor_optimizer)
+            
             agent.update_targets()
-            losses.append((critic_loss, actor_loss))
-        return losses
+            
+        return {'actor_loss':actor_loss, 'critic_loss':critic_loss}
 
     def save(self, directory: str):
         for agent in self.agents:

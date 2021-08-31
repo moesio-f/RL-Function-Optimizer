@@ -1,3 +1,4 @@
+from src.functions.core import Domain
 import matplotlib
 import numpy as np
 import gym
@@ -5,12 +6,20 @@ import json
 import os
 
 from matplotlib import pyplot as plt
+from tf_agents.drivers.py_driver import PyDriver
+from tf_agents.utils import common
 
 from src.multi_agent.maddpg import MADDPG
-from src.multi_agent.gym_env import MultiAgentFunctionEnv
+from src.multi_agent.gym_env import MultiAgentFunctionEnv, SimpleMultiAgentEnv
 from src.multi_agent.replay_buffer import MultiAgentReplayBuffer
 from src.functions.numpy_functions import Sphere
 
+import tf_agents.agents.ddpg as ddpg
+from tf_agents.environments.tf_py_environment import TFPyEnvironment
+from tf_agents.environments.wrappers import TimeLimit
+from src.single_agent.environments.py_function_environment import PySimpleEnvironment
+import tensorflow as tf
+import tensorflow.keras.optimizers as opt
 
 def make_results_dir(directory='results'):
   """Get result directory, if doesn't exist create one
@@ -36,6 +45,8 @@ def eval(env: gym.Env, agents: MADDPG, episodes=10, steps=50, index=None, direct
     index = 0
     while os.path.exists(os.path.join(directory, str(index + 1))):
       index += 1
+  if index == 0:
+    raise FileNotFoundError('No models found.')
 
   agents.load(os.path.join(directory, str(index), 'models'))
   best_score = -np.inf
@@ -69,8 +80,10 @@ def train(env: gym.Env, agents: MADDPG, memory: MultiAgentReplayBuffer,
 
   with open(os.path.join(save_directory, 'specs.json'), 'w') as specs_file:
     json.dump({
-      'batch_size': batch_size, 
-      'episodes': episodes, 
+      'enviroment': repr(env),
+      'dimentions': env.dims,
+      'batch_size': batch_size,
+      'episodes': episodes,
       'steps': steps,
       'update_rate': update_rate,
       'num_agents': agents.num_agents
@@ -98,51 +111,25 @@ def train(env: gym.Env, agents: MADDPG, memory: MultiAgentReplayBuffer,
       best_score = max(best_score, best_agent)
 
       total_steps += 1
-    print(f'episode {ep} | best score: {best_score:.5f} | current best: {best_agent:.5f} by agent {best_agent_idx}')
+    print(f'episode {ep} | best score: {best_score:.5f} current best: {best_agent:.5f} by agent {best_agent_idx}')
 
     if ep % save_interval == 0:
       agents.save(models_dir)
   return best_score
 
-
-class ScriptedAgent:
-  def __init__(self) -> None:
-    self.num_agents = 1
-
-  def __len__(self):
-    return self.num_agents
-
-  def action(self, obs):
-    print(obs)
-    return [0.1 * o for o in obs]
-
-  def initialize(self):
-    pass
-
-  def load(self):
-    pass
-
-  def save(self):
-    pass
-
-  def train(self):
-    pass
-
-
-def test_env(evaluate=False, save_index=None):
+def test_env(evaluate=False, index=None):
   env = MultiAgentFunctionEnv(Sphere(), dims=2, n_agents=1)
-  
-  # env = SimpleMultiAgentEnv(2)
-  agents = MADDPG(env.observation_space, env.action_space)
+  objective = np.array([0.5, 0.5])
+  # env = SimpleMultiAgentEnv(objective, 2, domain=Domain(-5.12, 5.12))
+  agents = MADDPG(env.observation_space, env.action_space, 1e-3, 1e-3)
   agents.initialize()
-  # agents = ScriptedAgent()
   if evaluate:
-    best = eval(env, agents, index=save_index)
+    best = eval(env, agents, index=index)
   else:
     memory = MultiAgentReplayBuffer(1_000_000, len(agents))
-    best = train(env, agents, memory, steps=25, episodes=5_000, update_rate=64)
+    best = train(env, agents, memory, steps=25, episodes=1_000, update_rate=64)
   print('Best result:', best)
 
 if __name__ == '__main__':
-  test_env(evaluate=False)
-
+  test_env(evaluate=1)
+  # test_ddpg()
