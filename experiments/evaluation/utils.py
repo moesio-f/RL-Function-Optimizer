@@ -256,16 +256,18 @@ def NAG(function: core.Function,
   return best_solutions, best_it
 
 
-def plot_convergence(show=False, dpi=300, style=None):
+def plot_convergence(functions: typing.List[str],
+                     show=False,
+                     dpi=300,
+                     style=None):
   if style is None:
     style = ['-', '-', '-', '-', '--', '--']
 
-  for i in range(1, 9):
-    F = f'F{i}'
+  for F in functions:
     file = F + '_30D_convergence.csv'
     data = pd.read_csv(file)
     del data['iteration']
-    data.plot(grid=True, fontsize=9, style=style)
+    data.plot(logx='sym', logy='sym', grid=True, fontsize=9, style=style)
     plt.xlabel('Iterações')
     plt.ylabel('Melhor Valor')
     plt.savefig(F + '_30D_plot', dpi=dpi)
