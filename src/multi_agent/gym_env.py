@@ -9,61 +9,64 @@ from gym.spaces import Box
 
 
 class MultiAgentFunctionEnv(gym.Env):
-  def __init__(self, function: Function, dims: int, n_agents: int, clip=False):
-    state: list[np.ndarray]
-    reseted: bool
+  def __init__(self, function: Function, dims: int, n_agents: int, clip_actions=False):
+    states: list[np.ndarray] = None
+    reseted: bool = False
     self.func = function
     self.drawer = FunctionDrawer(function)
     self.dims = dims
     self.n_agents = n_agents
+    self.should_clip = clip_actions
     
-    self.observation_space = [Box(*function.domain, (dims,)) for _ in range(n_agents)]
-    
-    if clip:
-      self.action_space = self.observation_space
-    else:
-      self.action_space = [Box(-np.inf, np.inf, (dims,)) for _ in range(n_agents)]
+    self.action_space = self.observation_space =\
+      [Box(*function.domain, (dims,)) for _ in range(n_agents)]
 
   def step(self, actions: List[np.ndarray]):
-    min, max = self.func.domain
-    for i, action in enumerate(actions):
-      self.state[i] = np.clip(self.state[i] + action, min, max)
+    self.states = [s + a for s,a in zip(self.states, actions)]
 
-    rewards = [-self.func(s) for s in self.state]
-    dones = [False] * self.n_agents
-    return self.state, rewards, dones, None
+    if self.should_clip:
+      min, max = self.func.domain
+      self.states = [np.clip(x, min, max) for x in self.states]
+
+    rewards = [-self.func(s) for s in self.states]
+
+    dones = [not obs_space.contains(state)
+      for obs_space, state in zip(self.observation_space, self.states)]
+    
+    return self.states, rewards, dones, None
 
   def reset(self):
     self.reseted = True
-    self.state = [space.sample().astype(np.float32)
+    self.states = [space.sample().astype(np.float32)
                   for space in self.observation_space]
-    return self.state
+    return self.states
 
   def render(self, mode='human'):
     if self.reseted:
       self.reseted = False
       self.drawer.clear()
       self.drawer.draw_mesh(alpha=0.4, cmap='coolwarm')
-
-      self.drawer.scatter(self.state[0][:2])
-    self.drawer.update_scatter(self.state[0][:2])
+      for state in self.states:
+        self.drawer.scatter(state[:2])
+    
+    for i, state in enumerate(self.states):
+        self.drawer.update_scatter(state[:2], i)
+    
   def __repr__(self) -> str:
     return f'{type(self).__name__}(function={self.func})'
 
 
 class SimpleMultiAgentEnv(gym.Env):
   def __init__(self, objective: np.ndarray, dims: int, n_agents: int = 1,
-               domain = Domain(-1.0, 1.0), clip=False):
+               domain = Domain(-1.0, 1.0)):
+    self.fig = None
     self.objective = objective.astype(np.float32)
     self.dims = dims
     self.n_agents = n_agents
     self.domain = domain
-
-    self.observation_space = [Box(*self.domain, (dims,)) 
-                              for _ in range(n_agents)]
-    self.action_space = [Box(*self.domain, (dims,)) for _ in range(n_agents)]
-    self.fig = None
-
+    self.action_space = self.observation_space =\
+      [Box(*self.domain, (dims,)) for _ in range(n_agents)]
+      
   def init_viewer(self):
     self.fig, self.ax = plt.subplots()
     self.agent_axes = [self.ax.scatter(0, 0, color='b') for _ in range(self.n_agents)]
@@ -72,20 +75,14 @@ class SimpleMultiAgentEnv(gym.Env):
     self.ax.set_ylim(self.domain)
 
   def step(self, actions: List[np.ndarray]):
-    min, max = self.domain
-    for i, action in enumerate(actions):
-      self.states[i] = np.clip(self.states[i] + action, min, max)
-
-    # get distance between each agent and the objective
+    self.states = [s + a for s,a in zip(self.states, actions)]
     rewards = [-np.linalg.norm(s - self.objective) for s in self.states]
-    dones = [False] * self.n_agents
+    dones = [not self.observation_space.contains(s) for s in self.state]
     return self.states, rewards, dones, None
 
   def reset(self):
-    min, max = self.domain
-    shape = (self.dims,)
-    self.states = [np.random.uniform(min, max, shape).astype(np.float32)
-                   for _ in range(self.n_agents)]
+    self.state = [space.sample().astype(np.float32)
+                  for space in self.observation_space]
     return np.concatenate(self.states)[None]
 
   def render(self, mode='human'):

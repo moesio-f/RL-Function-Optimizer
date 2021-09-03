@@ -95,6 +95,7 @@ def train(env: gym.Env, agents: MADDPG, memory: MultiAgentReplayBuffer,
   for ep in range(episodes):
     states = env.reset()
     best_agent = -np.inf
+    best_agent_idx = 0
 
     for step in range(steps):
       actions = agents.action(states)
@@ -102,6 +103,7 @@ def train(env: gym.Env, agents: MADDPG, memory: MultiAgentReplayBuffer,
       memory.add(states, actions, rewards, next_states, dones)
       states = next_states
 
+      # if all(dones): break
       if len(memory) > batch_size * steps and total_steps % update_rate == 0:
         experience = memory.sample(batch_size)
         losses = agents.train(experience)
@@ -118,18 +120,18 @@ def train(env: gym.Env, agents: MADDPG, memory: MultiAgentReplayBuffer,
   return best_score
 
 def test_env(evaluate=False, index=None):
-  env = MultiAgentFunctionEnv(Sphere(), dims=2, n_agents=1)
-  objective = np.array([0.5, 0.5])
+  # objective = np.array([0.5, 0.5])
   # env = SimpleMultiAgentEnv(objective, 2, domain=Domain(-5.12, 5.12))
+
+  env = MultiAgentFunctionEnv(Sphere(), dims=10, n_agents=1, clip_actions=True)
   agents = MADDPG(env.observation_space, env.action_space, 1e-3, 1e-3)
   agents.initialize()
   if evaluate:
     best = eval(env, agents, index=index)
   else:
     memory = MultiAgentReplayBuffer(1_000_000, len(agents))
-    best = train(env, agents, memory, steps=25, episodes=1_000, update_rate=64)
+    best = train(env, agents, memory, steps=25, episodes=10_000, update_rate=64)
   print('Best result:', best)
 
 if __name__ == '__main__':
-  test_env(evaluate=1)
-  # test_ddpg()
+  test_env(evaluate=1, index=11)

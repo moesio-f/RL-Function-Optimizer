@@ -50,10 +50,10 @@ class FunctionDrawer(object):
     self.ax.plot_surface(self.mesh[0], self.mesh[1], self.mesh[2], **kwargs)
     self.draw()
 
-  def update_scatter(self, new_position: np.ndarray):
+  def update_scatter(self, new_position: np.ndarray, index=0):
     x, y = new_position[None].T
     z = self.function(new_position)
-    self.points[0]._offsets3d = (x, y, z)
+    self.points[index]._offsets3d = (x, y, z)
 
   def scatter(self, point, color='r', **kwargs):
     z = self.function(point)
