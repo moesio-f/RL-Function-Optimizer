@@ -11,8 +11,8 @@ from src.functions import tensorflow_functions as tff
 class TestNumpyFunctions(unittest.TestCase):
   
   def setUp(self) -> None:
-    self.array = np.array([1,2,3,4], dtype=np.float32)
-    self.zero = np.array([0,0,0,0], dtype=np.float32)
+    self.array = np.array([1,2,3,4], dtype=np.float64)
+    self.zero = np.array([0,0,0,0], dtype=np.float64)
 
   def tearDown(self) -> None:
     del self.array
@@ -26,61 +26,91 @@ class TestNumpyFunctions(unittest.TestCase):
   def test_ackley(self):
     f = npf.Ackley()
     result = f(self.array)
-    self.assertAlmostEqual(result, 8.4346944444)
+    self.assertEqual(result, 8.43469444443746497)
+
+    result = f(self.zero)
+    self.assertEqual(result, 4.44089209850062616e-16)
     self.check_dtypes(f, self.array, result)
   
   def test_griewank(self):
     f = npf.Griewank()
     result = f(self.array)
-    self.assertAlmostEqual(result, 1.0018703780)
+    self.assertEqual(result, 1.00187037800320189)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
   
   def test_rastrigin(self):
     f = npf.Rastrigin()
     result = f(self.array)
-    self.assertAlmostEqual(result, 30.0000000000)
+    self.assertEqual(result, 30.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
   def test_levy(self):
     f = npf.Levy()
     result = f(self.array)
-    self.assertAlmostEqual(result, 2.7639718055725098)
+    self.assertEqual(result, 2.76397190019909811)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.897533662350923467)
     self.check_dtypes(f, self.array, result)
 
   def test_rosenbrock(self):
     f = npf.Rosenbrock()
     result = f(self.array)
-    self.assertAlmostEqual(result, 2705.0000000000)
+    self.assertEqual(result, 2705.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 3.0)
     self.check_dtypes(f, self.array, result)
 
   def test_zakharov(self):
     f = npf.Zakharov()
     result = f(self.array)
-    self.assertAlmostEqual(result, 50880.0000000000)
+    self.assertEqual(result, 50880.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
   def test_sum_squares(self):
     f = npf.SumSquares()
     result = f(self.array)
-    self.assertAlmostEqual(result, 100.0000000000)
+    self.assertEqual(result, 100.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
   
   def test_sphere(self):
     f = npf.Sphere()
     result = f(self.array)
-    self.assertAlmostEqual(result, 30.0000000000)
+    self.assertEqual(result, 30.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
   def test_rotated_hyper_ellipsoid(self):
     f = npf.RotatedHyperEllipsoid()
     result = f(self.array)
-    self.assertAlmostEqual(result, 50.0000000000)
+    self.assertEqual(result, 50.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
   def test_dixon_price(self):
     f = npf.DixonPrice()
     result = f(self.array)
-    self.assertAlmostEqual(result, 4230.0000000000)
+    self.assertEqual(result, 4230.0)
+
+    result = f(self.zero)
+    self.assertEqual(result, 1.0)
     self.check_dtypes(f, self.array, result)
 
 
