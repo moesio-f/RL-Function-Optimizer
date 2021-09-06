@@ -18,55 +18,70 @@ class TestNumpyFunctions(unittest.TestCase):
     del self.array
     del self.zero
 
+  # check dtypes between function's input and output
+  def check_dtypes(self, function, input, output):
+    self.assertEqual(input.dtype, output.dtype,
+      f"{function.name} output is {output.dtype} when should be {input.dtype}.")
+
   def test_ackley(self):
     f = npf.Ackley()
     result = f(self.array)
     self.assertAlmostEqual(result, 8.4346944444)
+    self.check_dtypes(f, self.array, result)
   
   def test_griewank(self):
     f = npf.Griewank()
     result = f(self.array)
     self.assertAlmostEqual(result, 1.0018703780)
+    self.check_dtypes(f, self.array, result)
   
   def test_rastrigin(self):
     f = npf.Rastrigin()
     result = f(self.array)
     self.assertAlmostEqual(result, 30.0000000000)
+    self.check_dtypes(f, self.array, result)
 
   def test_levy(self):
     f = npf.Levy()
     result = f(self.array)
     self.assertAlmostEqual(result, 2.7639718055725098)
+    self.check_dtypes(f, self.array, result)
 
   def test_rosenbrock(self):
     f = npf.Rosenbrock()
     result = f(self.array)
     self.assertAlmostEqual(result, 2705.0000000000)
+    self.check_dtypes(f, self.array, result)
 
   def test_zakharov(self):
     f = npf.Zakharov()
     result = f(self.array)
     self.assertAlmostEqual(result, 50880.0000000000)
+    self.check_dtypes(f, self.array, result)
 
   def test_sum_squares(self):
     f = npf.SumSquares()
     result = f(self.array)
     self.assertAlmostEqual(result, 100.0000000000)
+    self.check_dtypes(f, self.array, result)
   
   def test_sphere(self):
     f = npf.Sphere()
     result = f(self.array)
     self.assertAlmostEqual(result, 30.0000000000)
+    self.check_dtypes(f, self.array, result)
 
   def test_rotated_hyper_ellipsoid(self):
     f = npf.RotatedHyperEllipsoid()
     result = f(self.array)
     self.assertAlmostEqual(result, 50.0000000000)
+    self.check_dtypes(f, self.array, result)
 
   def test_dixon_price(self):
     f = npf.DixonPrice()
     result = f(self.array)
     self.assertAlmostEqual(result, 4230.0000000000)
+    self.check_dtypes(f, self.array, result)
 
 
 def test_random():
