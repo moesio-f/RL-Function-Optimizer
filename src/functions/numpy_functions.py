@@ -181,17 +181,17 @@ class Sphere(core.Function):
 
 class RotatedHyperEllipsoid(core.Function):
   """Rotated Hyper-Ellipsoid function as defined in:
-  https://www.sfu.ca/~ssurjano/rothyp.html.
-  TODO: Melhorar implementação."""
+  https://www.sfu.ca/~ssurjano/rothyp.html."""
 
   def __init__(self, domain = core.Domain(min=-65.536, max=65.536)):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    d = x.shape[0]
-    result = np.sum([np.sum(x[0:(i + 1)] ** 2, axis=0) for i in range(d)],
-                  dtype=np.float32, axis=0)
-
+    mat = x[None].repeat(len(x), axis=0)
+    matlow = np.tril(mat)
+    inner = np.sum(matlow**2, axis=-1)
+    result = np.sum(inner)
+    
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
     return result  
