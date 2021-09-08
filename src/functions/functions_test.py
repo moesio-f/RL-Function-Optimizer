@@ -9,15 +9,19 @@ from src.functions import tensorflow_functions as tff
 
 
 class TestNumpyFunctions(unittest.TestCase):
+  batch_size = 2 # batch size of array in multiple input testing
+  @classmethod
+  def setUpClass(cls) -> None:
+    cls.array = np.array([1,2,3,4], dtype=np.float64)
+    cls.batch = cls.array[None].repeat(cls.batch_size, axis=0)
+    cls.zero = np.array([0,0,0,0], dtype=np.float64)
+
+  @classmethod
+  def tearDownClass(cls) -> None:
+    del cls.array
+    del cls.zero
+    del cls.batch
   
-  def setUp(self) -> None:
-    self.array = np.array([1,2,3,4], dtype=np.float64)
-    self.zero = np.array([0,0,0,0], dtype=np.float64)
-
-  def tearDown(self) -> None:
-    del self.array
-    del self.zero
-
   # check dtypes between function's input and output
   def check_dtypes(self, function, input, output):
     self.assertEqual(input.dtype, output.dtype,
@@ -25,8 +29,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_ackley(self):
     f = npf.Ackley()
+    array_expected_result = 8.43469444443746497
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 8.43469444443746497)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 4.44089209850062616e-16)
@@ -34,8 +44,14 @@ class TestNumpyFunctions(unittest.TestCase):
   
   def test_griewank(self):
     f = npf.Griewank()
+    array_expected_result = 1.00187037800320189
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+
     result = f(self.array)
-    self.assertEqual(result, 1.00187037800320189)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.0)
@@ -43,8 +59,14 @@ class TestNumpyFunctions(unittest.TestCase):
   
   def test_rastrigin(self):
     f = npf.Rastrigin()
+    array_expected_result = 30.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+
     result = f(self.array)
-    self.assertEqual(result, 30.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.0)
@@ -52,8 +74,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_levy(self):
     f = npf.Levy()
+    array_expected_result = 2.76397190019909811
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+
     result = f(self.array)
-    self.assertEqual(result, 2.76397190019909811)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.897533662350923467)
@@ -61,8 +89,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_rosenbrock(self):
     f = npf.Rosenbrock()
+    array_expected_result = 2705.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 2705.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 3.0)
@@ -70,8 +104,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_zakharov(self):
     f = npf.Zakharov()
+    array_expected_result = 50880.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 50880.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.0)
@@ -79,8 +119,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_sum_squares(self):
     f = npf.SumSquares()
+    array_expected_result = 100.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 100.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.0)
@@ -88,8 +134,14 @@ class TestNumpyFunctions(unittest.TestCase):
   
   def test_sphere(self):
     f = npf.Sphere()
+    array_expected_result = 30.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 30.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.0)
@@ -97,8 +149,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_rotated_hyper_ellipsoid(self):
     f = npf.RotatedHyperEllipsoid()
+    array_expected_result = 50.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 50.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 0.0)
@@ -106,8 +164,14 @@ class TestNumpyFunctions(unittest.TestCase):
 
   def test_dixon_price(self):
     f = npf.DixonPrice()
+    array_expected_result = 4230.0
+    batch_expected_result = np.array(array_expected_result).repeat(self.batch_size)
+    
     result = f(self.array)
-    self.assertEqual(result, 4230.0)
+    self.assertEqual(result, array_expected_result)
+
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_expected_result))
 
     result = f(self.zero)
     self.assertEqual(result, 1.0)

@@ -19,9 +19,9 @@ class Ackley(core.Function):
     self.dtype = dtype
   
   def __call__(self, x: np.ndarray):
-    d = x.shape[0]
-    sum1 = np.sum(x * x, axis=0)
-    sum2 = np.sum(np.cos(self.c*x), axis=0)
+    d = x.shape[-1]
+    sum1 = np.sum(x * x, axis=-1)
+    sum2 = np.sum(np.cos(self.c*x), axis=-1)
     term1 = -self.a * np.exp(-self.b * np.sqrt(sum1/d))
     term2 = np.exp(sum2 / d)
     result = term1 - term2 + self.a + np.math.e
@@ -40,10 +40,12 @@ class Griewank(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    griewank_sum = np.sum(x ** 2, axis=0) / 4000.0
-    den = np.arange(start=1, stop=(x.shape[0] + 1), dtype=x.dtype)
+    x = np.atleast_2d(x)
+    griewank_sum = np.sum(x ** 2, axis=-1) / 4000.0
+    den = np.arange(1, x.shape[-1] + 1, 
+      dtype=x.dtype)[None].repeat(x.shape[0], axis=0)
     prod = np.cos(x / np.sqrt(den))
-    prod = np.prod(prod, axis=0)
+    prod = np.prod(prod, axis=-1)
     result = griewank_sum - prod + 1
 
     if result.dtype != x.dtype:
@@ -59,8 +61,8 @@ class Rastrigin(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    d = x.shape[0]
-    result = 10 * d + np.sum(x ** 2 - 10 * np.cos(x * 2 * np.math.pi), axis=0)
+    d = x.shape[-1]
+    result = 10 * d + np.sum(x ** 2 - 10 * np.cos(x * 2 * np.math.pi), axis=-1)
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
@@ -75,15 +77,17 @@ class Levy(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
+    x = np.atleast_2d(x)
     pi = np.math.pi
-    d = x.shape[0] - 1
+    d = x.shape[-1] - 1
     w = 1 + (x - 1) / 4
 
-    term1 = np.sin(pi * w[0]) ** 2
-    term3 = (w[d] - 1) ** 2 * (1 + np.sin(2 * pi * w[d]) ** 2)
-    wi = w[0:d]
+    term1 = np.sin(pi * w[:,0]) ** 2
+    wd = w[:,d]
+    term3 = (wd - 1) ** 2 * (1 + np.sin(2 * pi * wd) ** 2)
+    wi = w[:,0:d]
     levy_sum = np.sum((wi - 1) ** 2 * (1 + 10 * np.sin(pi * wi + 1) ** 2),
-                      axis=0)
+                      axis=-1)
     result = term1 + levy_sum + term3
 
     if result.dtype != x.dtype:
@@ -99,9 +103,10 @@ class Rosenbrock(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    xi = x[:-1]
-    xnext = x[1:]
-    result = np.sum(100 * (xnext - xi ** 2) ** 2 + (xi - 1) ** 2, axis=0)
+    x = np.atleast_2d(x)
+    xi = x[:,:-1]
+    xnext = x[:,1:]
+    result = np.sum(100 * (xnext - xi ** 2) ** 2 + (xi - 1) ** 2, axis=-1)
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
@@ -116,11 +121,11 @@ class Zakharov(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    d = x.shape[0]
+    d = x.shape[-1]
 
-    sum1 = np.sum(x * x, axis=0)
+    sum1 = np.sum(x * x, axis=-1)
     sum2 = np.sum(x * np.arange(start=1, stop=(d + 1), dtype=x.dtype) / 2,
-                  axis=0)
+                  axis=-1)
     result = sum1 + sum2 ** 2 + sum2 ** 4
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
@@ -135,7 +140,7 @@ class Bohachevsky(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    d = x.shape[0]
+    d = x.shape[-1]
     assert d == 2
 
     result = np.power(x[0], 2) + 2 * np.power(x[1], 2) - \
@@ -155,9 +160,9 @@ class SumSquares(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    d = x.shape[0]
+    d = x.shape[-1]
     mul = np.arange(start=1, stop=(d + 1), dtype=x.dtype)
-    result = np.sum((x ** 2) * mul, axis=0)
+    result = np.sum((x ** 2) * mul, axis=-1)
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
@@ -172,7 +177,7 @@ class Sphere(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    result = np.sum(x * x, axis=0)
+    result = np.sum(x * x, axis=-1)
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
@@ -187,10 +192,11 @@ class RotatedHyperEllipsoid(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    mat = x[None].repeat(len(x), axis=0)
+    x = np.atleast_2d(x)
+    mat = x[:,None].repeat(x.shape[-1], axis=1)
     matlow = np.tril(mat)
     inner = np.sum(matlow**2, axis=-1)
-    result = np.sum(inner)
+    result = np.sum(inner, axis=-1)
     
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
@@ -205,13 +211,14 @@ class DixonPrice(core.Function):
     super().__init__(domain)
 
   def __call__(self, x: np.ndarray):
-    x0 = x[0]
-    d = x.shape[0]
+    x = np.atleast_2d(x)
+    x0 = x[:,0]
+    d = x.shape[-1]
     ii = np.arange(2.0, d + 1)
-    xi = x[1:]
-    xold = x[:-1]
+    xi = x[:,1:]
+    xold = x[:,:-1]
     dixon_sum = ii * (2 * xi ** 2 - xold) ** 2
-    result = (x0 - 1) ** 2 + np.sum(dixon_sum, axis=0)
+    result = (x0 - 1) ** 2 + np.sum(dixon_sum, axis=-1)
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
