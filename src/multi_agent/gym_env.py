@@ -13,7 +13,7 @@ class MultiAgentFunctionEnv(gym.Env):
     states: list[np.ndarray] = None
     reseted: bool = False
     self.func = function
-    self.drawer = FunctionDrawer(function)
+    self.drawer = FunctionDrawer(function, alpha=0.4, cmap='coolwarm')
     self.dims = dims
     self.n_agents = n_agents
     self.should_clip = clip_actions
@@ -45,7 +45,7 @@ class MultiAgentFunctionEnv(gym.Env):
     if self.reseted:
       self.reseted = False
       self.drawer.clear()
-      self.drawer.draw_mesh(alpha=0.4, cmap='coolwarm')
+
       for state in self.states:
         self.drawer.scatter(state[:2])
     

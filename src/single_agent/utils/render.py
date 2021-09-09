@@ -1,5 +1,6 @@
 """Utility methods for function environments rendering."""
 
+from src.functions.numpy_functions import Ackley
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -21,44 +22,47 @@ class FunctionDrawer(object):
       note: bigger numbers make interactive window slow
   """
 
-  def __init__(self, function: core.Function, resolution=80):
-    self.set_mesh(function, resolution)
+  def __init__(self, function: core.Function, resolution=80, **surface_kwargs):
+    self.fig = None
+    self.quality = resolution
+    self.function = function
+    self.surface_kwargs = surface_kwargs
     self.points = []
 
   #  Set internal mesh to a new function
-  def set_mesh(self, function: core.Function, resolution=80):
-    self.function = function
-    self.fig = plt.figure()
-    self.ax = self.fig.add_subplot(projection='3d')
-    self.quality = resolution
+  @property
+  def function(self):
+    return self.func
 
+  @function.setter
+  def function(self, function: core.Function):
+    self.func = function
     # creating mesh
     x = y = np.linspace(function.domain.min, function.domain.max, self.quality)
     X, Y = np.lib.meshgrid(x, y)
-
-    zs = np.array([np.ravel(X), np.ravel(Y)])
-    zs = self.function(zs)
-
+    zs = np.array([np.ravel(X), np.ravel(Y)]).T
+    zs = self.func(zs)
     Z = zs.reshape(X.shape)
     self.mesh = (X, Y, Z)
 
-  def clear(self):
-    self.ax.clear()
-    self.points = []
+  def init_viewer(self):
+    self.fig, self.ax = plt.subplots(subplot_kw={'projection':'3d'})
 
-  def draw_mesh(self, **kwargs):
-    self.ax.plot_surface(self.mesh[0], self.mesh[1], self.mesh[2], **kwargs)
-    self.draw()
+  def clear(self):
+    if self.fig is None:
+      self.init_viewer()
+    self.ax.clear()
+    self.ax.plot_surface(*self.mesh, **self.surface_kwargs)
+    self.points = []
 
   def update_scatter(self, new_position: np.ndarray, index=0):
     x, y = new_position[None].T
-    z = self.function(new_position)
+    z = self.func(new_position)
     self.points[index]._offsets3d = (x, y, z)
 
-  def scatter(self, point, color='r', **kwargs):
-    z = self.function(point)
-    x, y = point
-    self.points.append(self.ax.scatter(x, y, z, color=color, **kwargs))
+  def scatter(self, point:np.ndarray, color='r', **kwargs):
+    z = self.func(point)
+    self.points.append(self.ax.scatter(*point, z, color=color, **kwargs))
     self.draw()
 
   def draw(self):
