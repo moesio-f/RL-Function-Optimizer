@@ -54,14 +54,14 @@ if __name__ == '__main__':
   dims = 30
   function = npf.Ackley()
 
-  env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims,
-                                                  clip_actions=False)
+  env_training = py_fun_env.PyFunctionEnv(function=function,
+                                          dims=dims,
+                                          bounded_actions_spec=False)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
-  env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims,
-                                              clip_actions=False)
+  env_eval = py_fun_env.PyFunctionEnv(function=function,
+                                      dims=dims,
+                                      bounded_actions_spec=False)
   env_eval = wrappers.TimeLimit(env=env_eval, duration=steps_eval)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)

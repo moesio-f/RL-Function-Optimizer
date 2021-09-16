@@ -63,7 +63,7 @@ def evaluate_policies(policies_functions: List[PolicyAndFunction],
     nonlocal episodes
     nonlocal dims
 
-    env = py_fun_env.PyFunctionEnvironment(
+    env = py_fun_env.PyFunctionEnv(
       function=policy_function.function,
       dims=dims)
     env = wrappers.TimeLimit(env=env, duration=steps)

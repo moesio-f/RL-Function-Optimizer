@@ -51,12 +51,13 @@ if __name__ == '__main__':
   critic_fc_layer_params = [256, 256]
 
   steps = 50  # Quantidade de interações agente-ambiente para treino.
+
+  episodes_eval = 10  # Quantidade de episódios de avaliação.
   steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
   dims = 30  # Dimensões da função.
   function = npf.Sphere()
 
-  '''
   # Criação dos SummaryWriter's
   train_summary_writer = tf.compat.v2.summary.create_file_writer(
     TRAIN_LOG_DIR, flush_millis=10 * 1000)
@@ -69,17 +70,16 @@ if __name__ == '__main__':
   train_metrics = [tf_metrics.AverageReturnMetric(),
                    tf_metrics.MaxReturnMetric()]
 
-  eval_metrics = []
-  '''
+  eval_metrics = [tf_metrics.AverageReturnMetric(buffer_size=episodes_eval)]
 
   # Criação do ambiente
-  env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims)
-  env_training = wrappers.TimeLimit(env=env_training, duration=(steps - 1))
+  env_training = py_fun_env.PyFunctionEnv(function=function,
+                                          dims=dims)
+  env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
-  env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims)
-  env_eval = wrappers.TimeLimit(env=env_eval, duration=(steps_eval - 1))
+  env_eval = py_fun_env.PyFunctionEnv(function=function,
+                                      dims=dims)
+  env_eval = wrappers.TimeLimit(env=env_eval, duration=steps)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
   tf_env_eval = tf_py_environment.TFPyEnvironment(environment=env_eval)

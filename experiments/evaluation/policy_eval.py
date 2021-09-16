@@ -25,7 +25,7 @@ if __name__ == '__main__':
 
   saved_pol = tf.compat.v2.saved_model.load(policy_dir)
 
-  env = py_fun_env.PyFunctionEnvironment(function, dims)
+  env = py_fun_env.PyFunctionEnv(function, dims)
   env = wrappers.TimeLimit(env, duration=steps)
 
   tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)

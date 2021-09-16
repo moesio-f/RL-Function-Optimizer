@@ -140,11 +140,11 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
   @autograph.do_not_convert()
   def get_info(self, to_numpy=False):
     if to_numpy:
-      return py_function_environment.FunctionEnvironmentInfo(
+      return py_function_environment.FunctionEnvInfo(
         position=self._last_position.value().numpy(),
         objective_value=self._last_objective_value.value().numpy())
 
-    return py_function_environment.FunctionEnvironmentInfo(
+    return py_function_environment.FunctionEnvInfo(
       position=self._last_position,
       objective_value=self._last_objective_value)
 

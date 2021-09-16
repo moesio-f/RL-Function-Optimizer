@@ -72,7 +72,7 @@ def run_rl_agent(policy: tf_policy.TFPolicy,
                  function: core.Function,
                  dims: int,
                  initial_time_step) -> Trajectory:
-  env = py_fun_env.PyFunctionEnvironment(function, dims)
+  env = py_fun_env.PyFunctionEnv(function, dims)
   env = wrappers.TimeLimit(env, duration=num_steps)
 
   tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
@@ -111,7 +111,7 @@ if __name__ == '__main__':
   FUNCTIONS = [npf.Sphere(), npf.Ackley()]
 
   for FUNCTION in FUNCTIONS:
-    ENV = py_fun_env.PyFunctionEnvironment(FUNCTION, DIMS)
+    ENV = py_fun_env.PyFunctionEnv(FUNCTION, DIMS)
     ENV = wrappers.TimeLimit(ENV, duration=STEPS)
     TF_ENV = tf_py_environment.TFPyEnvironment(environment=ENV)
     TF_FUNCTION = eval_utils.get_tf_function(FUNCTION)

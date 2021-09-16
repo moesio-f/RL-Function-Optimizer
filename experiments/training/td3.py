@@ -51,12 +51,12 @@ if __name__ == '__main__':
   dims = 30  # Dimensões da função.
   function = npf.Ackley()
 
-  env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims)
+  env_training = py_fun_env.PyFunctionEnv(function=function,
+                                          dims=dims)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
-  env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims)
+  env_eval = py_fun_env.PyFunctionEnv(function=function,
+                                      dims=dims)
   env_eval = wrappers.TimeLimit(env=env_eval, duration=steps_eval)
 
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)

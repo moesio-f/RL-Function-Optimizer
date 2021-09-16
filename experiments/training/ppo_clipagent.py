@@ -39,8 +39,8 @@ def main(_):
   function = npf.Ackley()
 
   tf_env_eval = tf_py_environment.TFPyEnvironment(
-    wrappers.TimeLimit(env=py_func_env.PyFunctionEnvironment(function=function,
-                                                             dims=dims),
+    wrappers.TimeLimit(env=py_func_env.PyFunctionEnv(function=function,
+                                                     dims=dims),
                        duration=steps_eval))
 
   def evaluate_current_policy(policy, episodes=num_eval_episodes):
@@ -80,7 +80,7 @@ def main(_):
   tf_env_training = tf_py_environment.TFPyEnvironment(
     parallel_py_environment.ParallelPyEnvironment(
       [lambda: wrappers.TimeLimit(
-        env=py_func_env.PyFunctionEnvironment(function=function, dims=dims),
+        env=py_func_env.PyFunctionEnv(function=function, dims=dims),
         duration=steps)] * num_parallel_environments))
 
   actor_net = actor_distribution_network.ActorDistributionNetwork(

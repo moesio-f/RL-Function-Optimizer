@@ -78,9 +78,9 @@ if __name__ == '__main__':
   max_reward = 500
   reward_scale = 1e-2
 
-  env_training = py_fun_env.PyFunctionEnvironment(function=function,
-                                                  dims=dims,
-                                                  clip_actions=True)
+  env_training = py_fun_env.PyFunctionEnv(function=function,
+                                          dims=dims,
+                                          bounded_actions_spec=True)
   env_training = py_env_wrappers.RewardClip(env=env_training,
                                             min_reward=min_reward,
                                             max_reward=max_reward)
@@ -88,9 +88,9 @@ if __name__ == '__main__':
                                              scale_factor=reward_scale)
   env_training = wrappers.TimeLimit(env=env_training, duration=steps)
 
-  env_eval = py_fun_env.PyFunctionEnvironment(function=function,
-                                              dims=dims,
-                                              clip_actions=True)
+  env_eval = py_fun_env.PyFunctionEnv(function=function,
+                                      dims=dims,
+                                      bounded_actions_spec=True)
   env_eval = py_env_wrappers.RewardClip(env=env_eval,
                                         min_reward=min_reward,
                                         max_reward=max_reward)

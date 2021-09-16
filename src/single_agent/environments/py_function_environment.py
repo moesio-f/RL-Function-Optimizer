@@ -14,18 +14,23 @@ from src.functions import core
 MAX_STEPS = 50000
 
 
-class FunctionEnvironmentInfo(
+class FunctionEnvInfo(
   collections.namedtuple('FunctionEnvironmentInfo',
-                         ('position', 'objective_value'))):
+                         ('position',
+                          'objective_value',
+                          'best_position',
+                          'best_objective_value'))):
   """Representa algumas informações úteis sobre o ambiente.
   'position' representa a última posição do agente na função (x).
   'objective_value' representa o valor da função nessa posição (f(x)).
+  'best_position' representa x*.
+  'best_objective_value' representa f(x*).
   """
   pass
 
 
-class PyFunctionEnvironment(py_environment.PyEnvironment):
-  """Ambiente para a minização de função.
+class PyFunctionEnv(py_environment.PyEnvironment):
+  """Ambiente para a minimização de função.
   Dada uma função f: D -> I, onde D é um subonjunto de R^d
   e I é um subconjunto de R, as especificações do ambiente são:
     as observações (s em D) são posições do domínio;
@@ -33,8 +38,23 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     as recompensas são r = -f(s + a).
   """
   def __init__(self, function: core.Function, dims,
-               clip_actions: bool = True):
+               bounded_actions_spec: bool = True):
     super().__init__()
+    self._action_spec = array_spec.BoundedArraySpec(shape=(self._dims,),
+                                                    dtype=np.float32,
+                                                    minimum=-1.0,
+                                                    maximum=1.0,
+                                                    name='action')
+    if not bounded_actions_spec:
+      self._action_spec = array_spec.ArraySpec.from_spec(self._action_spec)
+
+    self._observation_spec = array_spec.BoundedArraySpec(
+      shape=(self._dims,),
+      dtype=np.float32,
+      minimum=function.domain.min,
+      maximum=function.domain.max,
+      name='observation')
+
     self._rng = default_rng()
     self.func = function
     self._dims = dims
@@ -45,22 +65,9 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     self._state = self.__initial_state()
 
     self._last_objective_value = self.func(self._state)
+    self._best_objective_value = self._last_objective_value
     self._last_position = self._state
-
-    self._action_spec = array_spec.BoundedArraySpec(shape=(self._dims,),
-                                                    dtype=np.float32,
-                                                    minimum=-1.0,
-                                                    maximum=1.0,
-                                                    name='action')
-    if not clip_actions:
-      self._action_spec = array_spec.ArraySpec.from_spec(self._action_spec)
-
-    self._observation_spec = array_spec.BoundedArraySpec(
-      shape=(self._dims,),
-      dtype=np.float32,
-      minimum=function.domain.min,
-      maximum=function.domain.max,
-      name='observation')
+    self._best_position = self._last_position
 
   def action_spec(self):
     return self._action_spec
@@ -69,8 +76,10 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     return self._observation_spec
 
   def get_info(self):
-    return FunctionEnvironmentInfo(position=self._last_position,
-                                   objective_value=self._last_objective_value)
+    return FunctionEnvInfo(position=self._last_position,
+                           objective_value=self._last_objective_value,
+                           best_position=self._best_position,
+                           best_objective_value=self._best_objective_value)
 
   def get_state(self):
     state = (self._state, self._steps_taken, self._episode_ended)
@@ -81,6 +90,10 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     self._state = _state
     self._steps_taken = _steps_taken
     self._episode_ended = _episode_ended
+    self._last_objective_value = self.func(self._state)
+    self._best_objective_value = self._last_objective_value
+    self._last_position = self._state
+    self._best_position = self._last_position
 
   def _step(self, action):
     if self._episode_ended:
@@ -91,13 +104,17 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     self._state = np.clip(self._state, domain_min, domain_max)
 
     self._steps_taken += 1
-    if self._steps_taken > MAX_STEPS:
+    if self._steps_taken >= MAX_STEPS:
       self._episode_ended = True
 
     obj_value = self.func(self._state)
     reward = -obj_value
     self._last_objective_value = obj_value
     self._last_position = self._state
+
+    if self._last_objective_value < self._best_objective_value:
+      self._best_objective_value = self._last_objective_value
+      self._best_position = self._last_position
 
     if self._episode_ended:
       return ts.termination(self._state, reward)
@@ -109,7 +126,9 @@ class PyFunctionEnvironment(py_environment.PyEnvironment):
     self._episode_ended = False
     self._steps_taken = 0
     self._last_objective_value = self.func(self._state)
+    self._best_objective_value = self._last_objective_value
     self._last_position = self._state
+    self._best_position = self._last_position
     return ts.restart(self._state)
 
   def render(self, mode: str = 'human'):
