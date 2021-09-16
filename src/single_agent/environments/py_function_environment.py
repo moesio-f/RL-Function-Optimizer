@@ -7,6 +7,7 @@ from numpy.random import default_rng
 from tf_agents.environments import py_environment
 from tf_agents.specs import array_spec
 from tf_agents.trajectories import time_step as ts
+from tf_agents.typing import types
 
 from src.functions import core
 
@@ -14,32 +15,25 @@ from src.functions import core
 MAX_STEPS = 50000
 
 
-class FunctionEnvInfo(
-  collections.namedtuple('FunctionEnvironmentInfo',
-                         ('position',
-                          'objective_value',
-                          'best_position',
-                          'best_objective_value'))):
-  """Representa algumas informações úteis sobre o ambiente.
-  'position' representa a última posição do agente na função (x).
-  'objective_value' representa o valor da função nessa posição (f(x)).
-  'best_position' representa x*.
-  'best_objective_value' representa f(x*).
-  """
-  pass
-
-
 class PyFunctionEnv(py_environment.PyEnvironment):
   """Ambiente para a minimização de função.
-  Dada uma função f: D -> I, onde D é um subonjunto de R^d
+  Dada uma função f: D -> I, onde D é um subconjunto de R^d
   e I é um subconjunto de R, as especificações do ambiente são:
     as observações (s em D) são posições do domínio;
     as ações (a em R^d) são os possíveis passos;
     as recompensas são r = -f(s + a).
   """
+
+  def get_info(self) -> types.NestedArray:
+    return self._state
+
   def __init__(self, function: core.Function, dims,
                bounded_actions_spec: bool = True):
     super().__init__()
+    self._rng = default_rng()
+    self.func = function
+    self._dims = dims
+
     self._action_spec = array_spec.BoundedArraySpec(shape=(self._dims,),
                                                     dtype=np.float32,
                                                     minimum=-1.0,
@@ -55,31 +49,16 @@ class PyFunctionEnv(py_environment.PyEnvironment):
       maximum=function.domain.max,
       name='observation')
 
-    self._rng = default_rng()
-    self.func = function
-    self._dims = dims
-
     self._episode_ended = False
     self._steps_taken = 0
 
     self._state = self.__initial_state()
-
-    self._last_objective_value = self.func(self._state)
-    self._best_objective_value = self._last_objective_value
-    self._last_position = self._state
-    self._best_position = self._last_position
 
   def action_spec(self):
     return self._action_spec
 
   def observation_spec(self):
     return self._observation_spec
-
-  def get_info(self):
-    return FunctionEnvInfo(position=self._last_position,
-                           objective_value=self._last_objective_value,
-                           best_position=self._best_position,
-                           best_objective_value=self._best_objective_value)
 
   def get_state(self):
     state = (self._state, self._steps_taken, self._episode_ended)
@@ -90,10 +69,6 @@ class PyFunctionEnv(py_environment.PyEnvironment):
     self._state = _state
     self._steps_taken = _steps_taken
     self._episode_ended = _episode_ended
-    self._last_objective_value = self.func(self._state)
-    self._best_objective_value = self._last_objective_value
-    self._last_position = self._state
-    self._best_position = self._last_position
 
   def _step(self, action):
     if self._episode_ended:
@@ -109,12 +84,6 @@ class PyFunctionEnv(py_environment.PyEnvironment):
 
     obj_value = self.func(self._state)
     reward = -obj_value
-    self._last_objective_value = obj_value
-    self._last_position = self._state
-
-    if self._last_objective_value < self._best_objective_value:
-      self._best_objective_value = self._last_objective_value
-      self._best_position = self._last_position
 
     if self._episode_ended:
       return ts.termination(self._state, reward)
@@ -125,10 +94,6 @@ class PyFunctionEnv(py_environment.PyEnvironment):
     self._state = self.__initial_state()
     self._episode_ended = False
     self._steps_taken = 0
-    self._last_objective_value = self.func(self._state)
-    self._best_objective_value = self._last_objective_value
-    self._last_position = self._state
-    self._best_position = self._last_position
     return ts.restart(self._state)
 
   def render(self, mode: str = 'human'):

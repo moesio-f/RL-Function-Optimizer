@@ -1,11 +1,12 @@
 """DDPG para aprender um algoritmo de otimização."""
 
-import os
+import time
 
 import tensorflow as tf
 from tf_agents.agents.ddpg import ddpg_agent
 from tf_agents.agents.ddpg import critic_network as critic_net
 from tf_agents.drivers import dynamic_step_driver as dy_sd
+from tf_agents.drivers import dynamic_episode_driver as dy_ed
 from tf_agents.environments import tf_py_environment
 from tf_agents.environments import wrappers
 from tf_agents.replay_buffers import tf_uniform_replay_buffer
@@ -15,18 +16,17 @@ from tf_agents.metrics import tf_metrics
 
 from src.single_agent.environments import py_function_environment as py_fun_env
 from src.single_agent.networks import linear_actor_network as lin_actor_net
+from src.single_agent.metrics import tf_custom_metrics
 from src.functions import numpy_functions as npf
-from src import config
 
 from experiments.evaluation import utils as eval_utils
 from experiments.training import utils as training_utils
 
-LOG_DIR = os.path.join(config.EXPERIMENTS_DIR, 'logs')
-TRAIN_LOG_DIR = os.path.join(LOG_DIR, 'training')
-EVAL_LOG_DIR = os.path.join(LOG_DIR, 'eval')
-
 if __name__ == '__main__':
-  num_episodes = 5000
+  # Hiperparâmetros
+  algorithm_name = 'DDPG'
+
+  num_episodes = 100
   initial_collect_episodes = 10
   collect_steps_per_iteration = 1
 
@@ -52,25 +52,13 @@ if __name__ == '__main__':
 
   steps = 50  # Quantidade de interações agente-ambiente para treino.
 
+  eval_interval = 10  # Intervalo entre episódios para avaliação.
   episodes_eval = 10  # Quantidade de episódios de avaliação.
   steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
-  dims = 30  # Dimensões da função.
-  function = npf.Sphere()
-
-  # Criação dos SummaryWriter's
-  train_summary_writer = tf.compat.v2.summary.create_file_writer(
-    TRAIN_LOG_DIR, flush_millis=10 * 1000)
-  train_summary_writer.set_as_default()
-
-  eval_summary_writer = tf.compat.v2.summary.create_file_writer(
-    EVAL_LOG_DIR, flush_millis=10 * 1000)
-  
-  # Criação das métricas
-  train_metrics = [tf_metrics.AverageReturnMetric(),
-                   tf_metrics.MaxReturnMetric()]
-
-  eval_metrics = [tf_metrics.AverageReturnMetric(buffer_size=episodes_eval)]
+  dims = 2  # Dimensões da função.
+  function = npf.Levy()
+  tf_function = npf.get_tf_function(function)
 
   # Criação do ambiente
   env_training = py_fun_env.PyFunctionEnv(function=function,
@@ -84,11 +72,31 @@ if __name__ == '__main__':
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
   tf_env_eval = tf_py_environment.TFPyEnvironment(environment=env_eval)
 
+  # Criação dos SummaryWriter's
+  print('Creating logs directories.')
+  log_dir, log_eval_dir, log_train_dir = training_utils.create_logs_dir(
+    algorithm_name, function, dims)
+
+  train_summary_writer = tf.compat.v2.summary.create_file_writer(
+    log_train_dir, flush_millis=10 * 1000)
+  train_summary_writer.set_as_default()
+
+  eval_summary_writer = tf.compat.v2.summary.create_file_writer(
+    log_eval_dir, flush_millis=10 * 1000)
+
+  # Criação das métricas
+  train_metrics = [tf_metrics.AverageReturnMetric(),
+                   tf_metrics.MaxReturnMetric()]
+
+  eval_metrics = [tf_metrics.AverageReturnMetric(buffer_size=episodes_eval),
+                  tf_custom_metrics.AverageBestObjectiveValueMetric(
+                    function=tf_function, buffer_size=episodes_eval)]
+
+  # Criação do agente, redes neurais, otimizadores
   obs_spec = tf_env_training.observation_spec()
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
-  # Criação do agente, redes neurais, otimizadores
   actor_network = lin_actor_net.LinearActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
@@ -103,10 +111,8 @@ if __name__ == '__main__':
     activation_fn=tf.keras.activations.relu,
     output_activation_fn=tf.keras.activations.linear)
 
-  actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr,
-                                             clipnorm=0.5)
-  critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr,
-                                              clipnorm=0.5)
+  actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
+  critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
 
   train_step = train_utils.create_train_step()
 
@@ -132,26 +138,32 @@ if __name__ == '__main__':
     batch_size=tf_env_training.batch_size,
     max_length=buffer_size)
 
+  observers_train = [replay_buffer.add_batch] + train_metrics
   driver = dy_sd.DynamicStepDriver(env=tf_env_training,
                                    policy=agent.collect_policy,
-                                   observers=[replay_buffer.add_batch],
+                                   observers=observers_train,
                                    num_steps=collect_steps_per_iteration)
 
-  initial_collect_driver = dy_sd.DynamicStepDriver(
+  initial_collect_driver = dy_ed.DynamicEpisodeDriver(
     env=tf_env_training,
     policy=agent.collect_policy,
     observers=[replay_buffer.add_batch],
-    num_steps=collect_steps_per_iteration)
+    num_episodes=initial_collect_episodes)
+
+  eval_driver = dy_ed.DynamicEpisodeDriver(env=tf_env_eval,
+                                           policy=agent.policy,
+                                           observers=eval_metrics,
+                                           num_episodes=episodes_eval)
 
   # Conversão das principais funções para tf.function's
   initial_collect_driver.run = common.function(initial_collect_driver.run)
   driver.run = common.function(driver.run)
+  eval_driver.run = common.function(eval_driver.run)
   agent.train = common.function(agent.train)
 
-  # Coleta inicial
-  for _ in range(initial_collect_episodes):
-    for _ in range(steps):
-      initial_collect_driver.run()
+  print('Initializing replay buffer by collecting experience for {0} '
+        'episodes with a collect policy.'.format(initial_collect_episodes))
+  initial_collect_driver.run()
 
   # Criação do dataset
   dataset = replay_buffer.as_dataset(
@@ -161,7 +173,18 @@ if __name__ == '__main__':
 
   iterator = iter(dataset)
 
+  # Criação da função para calcular as métricas
+  def compute_eval_metrics():
+    return eval_utils.eager_compute(eval_metrics,
+                                    tf_env_eval,
+                                    agent.policy,
+                                    eval_driver,
+                                    train_step=agent.train_step_counter,
+                                    summary_writer=eval_summary_writer,
+                                    summary_prefix='Metrics')
+
   agent.train_step_counter.assign(0)
+  compute_eval_metrics()
 
 
   @tf.function
@@ -174,24 +197,41 @@ if __name__ == '__main__':
 
   # Treinamento
   for ep in range(num_episodes):
+    start_time = time.time()
     for _ in range(steps):
       train_phase()
-    print(ep)
 
+      for train_metric in train_metrics:
+        train_metric.tf_summaries(train_step=agent.train_step_counter)
+
+    if ep % eval_interval == 0:
+      print('-------- Evaluation --------')
+      results = compute_eval_metrics()
+      print('Average return: {0}'.format(results.get(eval_metrics[0].name)))
+      print('Average best value: {0}'.format(results.get(eval_metrics[1].name)))
+      print('---------------------------')
+
+    delta_time = time.time() - start_time
+    print('Finished episode {0}. '
+          'Delta time since last episode: {1:.2f}'.format(ep, delta_time))
+
+  compute_eval_metrics()
   # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
   # Produz um gráfico de convergência para o agente na função.
+  """
   eval_utils.evaluate_agent(tf_env_eval,
                             agent.policy,
                             function,
                             dims,
-                            algorithm_name='DDPG',
+                            algorithm_name=algorithm_name,
                             save_to_file=False,
                             episodes=100)
+  """
 
   # Salvamento da policy aprendida.
   # Pasta de saída: output/DDPG-{dims}D-{function.name}/
   # OBS:. Caso já exista, a saída é sobrescrita.
-  training_utils.save_policy('DDPG',
+  training_utils.save_policy(algorithm_name,
                              function,
                              dims,
                              agent.policy)

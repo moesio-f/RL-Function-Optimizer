@@ -1,5 +1,5 @@
 """Funções utilitárias para avaliação dos algoritmos."""
-
+import collections
 import typing
 import csv
 
@@ -9,10 +9,13 @@ import numpy.random as rand
 import pandas as pd
 import tensorflow as tf
 from tf_agents.environments import tf_environment
+from tf_agents.drivers import dynamic_episode_driver as dy_ed
+from tf_agents.utils import common
 from tf_agents.policies import tf_policy
 
 from src.functions import core
 from src.functions import tensorflow_functions as tff
+from src.functions import numpy_functions as npf
 
 
 # Agrupa as informações necessárias sobre a avaliação de um baseline.
@@ -100,6 +103,31 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
   plt.show()
 
 
+def eager_compute(metrics,
+                  environment,
+                  policy,
+                  driver,
+                  train_step=None,
+                  summary_writer=None,
+                  summary_prefix=''):
+  for metric in metrics:
+    metric.reset()
+
+  time_step = environment.reset()
+  policy_state = policy.get_initial_state(environment.batch_size)
+  driver.run(time_step, policy_state)
+  results = [(metric.name, metric.result()) for metric in metrics]
+
+  if train_step is not None and summary_writer:
+    with summary_writer.as_default():
+      for result in results:
+        m_name, m_result = result
+        tag = common.join_scope(summary_prefix, m_name)
+        tf.compat.v2.summary.scalar(name=tag, data=m_result, step=train_step)
+
+  return collections.OrderedDict(results)
+
+
 def evaluate_baselines(functions: typing.List[core.Function],
                        dims: int,
                        steps=500,
@@ -108,7 +136,7 @@ def evaluate_baselines(functions: typing.List[core.Function],
 
   for fun in functions:
     rng = rand.default_rng()
-    tf_function = get_tf_function(fun)
+    tf_function = npf.get_tf_function(fun)
 
     gd_bs = []
     gd_bs_it = []
@@ -166,13 +194,6 @@ def evaluate_baselines(functions: typing.List[core.Function],
                        data.avg_best_solution,
                        data.stddev_best_solutions,
                        data.avg_best_solution_iteration])
-
-
-# Função utilitária para obter uma função equivalente de Numpy em Tensorflow.
-def get_tf_function(function: core.Function):
-  domain = function.domain
-  f = getattr(tff, function.name)
-  return f(domain)
 
 
 # Parâmetros para o GD em cada função.

@@ -4,6 +4,7 @@ import numpy as np
 import tensorflow as tf
 
 from src.functions import core
+from src.functions import numpy_functions as npf
 
 
 class Ackley(core.Function):
@@ -219,6 +220,13 @@ class DixonPrice(core.Function):
     dixon_sum = ii * (2 * xi ** 2 - xold) ** 2
     term2 = tf.reduce_sum(dixon_sum, axis=0)
     return term1 + term2
+
+
+# Função utilitária para obter uma função equivalente de TensorFlow em Numpy.
+def get_tf_function(function: core.Function):
+  domain = function.domain
+  f = getattr(npf, function.name)
+  return f(domain)
 
 
 def list_all_functions() -> [core.Function]:

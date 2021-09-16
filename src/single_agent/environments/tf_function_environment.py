@@ -7,7 +7,6 @@ from tf_agents.environments import tf_environment
 from tf_agents.trajectories import time_step as ts
 from tf_agents.utils import common
 
-from src.single_agent.environments import py_function_environment
 from src.functions import core
 
 FIRST = ts.StepType.FIRST
@@ -139,14 +138,7 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
 
   @autograph.do_not_convert()
   def get_info(self, to_numpy=False):
-    if to_numpy:
-      return py_function_environment.FunctionEnvInfo(
-        position=self._last_position.value().numpy(),
-        objective_value=self._last_objective_value.value().numpy())
-
-    return py_function_environment.FunctionEnvInfo(
-      position=self._last_position,
-      objective_value=self._last_objective_value)
+    raise NotImplementedError("No info available for this environment.")
 
   def render(self):
     raise ValueError('Environment does not support render yet.')
