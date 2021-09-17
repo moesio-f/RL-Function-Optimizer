@@ -78,9 +78,9 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
       algorithm_name,
       function,
       dims),
-      '{0}-{1}dims-{2}.png'.format(function.name,
-                                   dims,
-                                   algorithm_name))
+      '{0}-{1}D-{2}.png'.format(function.name,
+                                dims,
+                                algorithm_name))
     plt.savefig(fname=filename,
                 bbox_inches='tight')
   plt.show()

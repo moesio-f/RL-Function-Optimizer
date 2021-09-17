@@ -57,7 +57,7 @@ if __name__ == '__main__':
   steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
   dims = 2  # Dimensões da função.
-  function = npf.Griewank()
+  function = npf.Rastrigin()
   tf_function = npf.get_tf_function(function)
 
   # Criação do ambiente
