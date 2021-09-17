@@ -38,7 +38,7 @@ if __name__ == '__main__':
   tau = 1e-2
   target_update_period = 1
 
-  discount = 0.95
+  discount = 0.99
 
   ou_stddev = 0.2
   ou_damping = 0.15
@@ -57,7 +57,7 @@ if __name__ == '__main__':
   steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
 
   dims = 2  # Dimensões da função.
-  function = npf.Levy()
+  function = npf.Griewank()
   tf_function = npf.get_tf_function(function)
 
   # Criação do ambiente
@@ -176,15 +176,12 @@ if __name__ == '__main__':
   # Criação da função para calcular as métricas
   def compute_eval_metrics():
     return eval_utils.eager_compute(eval_metrics,
-                                    tf_env_eval,
-                                    agent.policy,
                                     eval_driver,
                                     train_step=agent.train_step_counter,
                                     summary_writer=eval_summary_writer,
                                     summary_prefix='Metrics')
 
   agent.train_step_counter.assign(0)
-  compute_eval_metrics()
 
 
   @tf.function
@@ -206,27 +203,32 @@ if __name__ == '__main__':
 
     if ep % eval_interval == 0:
       print('-------- Evaluation --------')
+      start_eval = time.time()
       results = compute_eval_metrics()
       print('Average return: {0}'.format(results.get(eval_metrics[0].name)))
       print('Average best value: {0}'.format(results.get(eval_metrics[1].name)))
+      print('Eval delta time: {0:.2f}'.format(time.time() - start_eval))
       print('---------------------------')
+      if results.get(eval_metrics[1].name) < 1e-5:
+        break
 
     delta_time = time.time() - start_time
     print('Finished episode {0}. '
           'Delta time since last episode: {1:.2f}'.format(ep, delta_time))
 
+  # Computando métricas de avaliação uma última vez.
   compute_eval_metrics()
+
   # Avaliação do algoritmo aprendido (policy) em 100 episódios distintos.
   # Produz um gráfico de convergência para o agente na função.
-  """
   eval_utils.evaluate_agent(tf_env_eval,
                             agent.policy,
                             function,
                             dims,
+                            steps,
                             algorithm_name=algorithm_name,
-                            save_to_file=False,
+                            save_to_file=True,
                             episodes=100)
-  """
 
   # Salvamento da policy aprendida.
   # Pasta de saída: output/DDPG-{dims}D-{function.name}/

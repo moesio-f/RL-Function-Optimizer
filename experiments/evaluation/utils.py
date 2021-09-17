@@ -2,6 +2,7 @@
 import collections
 import typing
 import csv
+import os
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,6 +17,9 @@ from tf_agents.policies import tf_policy
 from src.functions import core
 from src.functions import tensorflow_functions as tff
 from src.functions import numpy_functions as npf
+from src.single_agent.metrics import tf_custom_metrics
+
+from experiments.training import utils as training_utils
 
 
 # Agrupa as informações necessárias sobre a avaliação de um baseline.
@@ -31,57 +35,31 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
                    policy_eval: tf_policy.TFPolicy,
                    function: core.Function,
                    dims,
+                   steps,
                    algorithm_name,
                    save_to_file=False,
-                   show_all_trajectories=False,
                    episodes=100):
-  trajectories = []
-  best_trajectory = [np.finfo(np.float32).max]
-  best_pos = None
+  tf_function = npf.get_tf_function(function)
+  eval_metrics = [tf_custom_metrics.ConvergenceMultiMetric(steps + 1,
+                                                           tf_function)]
 
-  for _ in range(episodes):
-    time_step = eval_env.reset()
-    info = eval_env.get_info()
+  eval_driver = dy_ed.DynamicEpisodeDriver(env=eval_env,
+                                           policy=policy_eval,
+                                           observers=eval_metrics,
+                                           num_episodes=episodes)
+  eval_driver.run = common.function(eval_driver.run)
 
-    best_solution_ep = info.objective_value[0]
-    best_pos_ep = info.position[0]
-
-    trajectory = [best_solution_ep]
-    it = 0
-
-    while not time_step.is_last():
-      it += 1
-      action_step = policy_eval.action(time_step)
-      time_step = eval_env.step(action_step.action)
-      info = eval_env.get_info()
-
-      obj_value = info.objective_value[0]
-
-      if obj_value < best_solution_ep:
-        best_solution_ep = obj_value
-        best_pos_ep = info.position[0]
-
-      trajectory.append(best_solution_ep)
-
-    if trajectory[-1] < best_trajectory[-1]:
-      best_trajectory = trajectory
-      best_pos = best_pos_ep
-
-    trajectories.append(trajectory)
-
-  mean = np.mean(trajectories, axis=0)
+  results = eager_compute(eval_metrics,
+                          eval_driver)
+  mean = results.get(eval_metrics[0].name)[0]
+  best = results.get(eval_metrics[0].name)[1]
 
   _, ax = plt.subplots(figsize=(18.0, 10.0,))
 
-  if show_all_trajectories:
-    for t in trajectories:
-      ax.plot(t, '--c', alpha=0.4)
-
   ax.plot(mean, 'r', label='Best mean value: {0}'.format(mean[-1]))
-  ax.plot(best_trajectory, 'g',
-          label='Best value: {0}'.format(best_trajectory[-1]))
+  ax.plot(best, 'g', label='Best value: {0}'.format(best[-1]))
 
-  ax.set(xlabel="Iterations\nBest solution at: {0}".format(best_pos),
+  ax.set(xlabel="Iterations",
          ylabel="Best objective value",
          title="{0} on {1} ({2} Dims)".format(algorithm_name,
                                               function.name,
@@ -96,22 +74,28 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
   plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
            rotation_mode="anchor")
   if save_to_file:
-    plt.savefig(fname='{0}-{1}dims-{2}.png'.format(function.name,
-                                                   dims,
-                                                   algorithm_name),
+    filename = os.path.join(training_utils.path_agent_dir(
+      algorithm_name,
+      function,
+      dims),
+      '{0}-{1}dims-{2}.png'.format(function.name,
+                                   dims,
+                                   algorithm_name))
+    plt.savefig(fname=filename,
                 bbox_inches='tight')
   plt.show()
 
 
 def eager_compute(metrics,
-                  environment,
-                  policy,
                   driver,
                   train_step=None,
                   summary_writer=None,
                   summary_prefix=''):
   for metric in metrics:
     metric.reset()
+
+  environment = driver.env
+  policy = driver.policy
 
   time_step = environment.reset()
   policy_state = policy.get_initial_state(environment.batch_size)
