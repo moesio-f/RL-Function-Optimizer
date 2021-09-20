@@ -22,86 +22,90 @@ from src.functions import numpy_functions as npf
 from experiments.evaluation import utils as eval_utils
 from experiments.training import utils as training_utils
 
-if __name__ == '__main__':
-  # Hiperparâmetros
+
+def train_ddpg(dims,
+               function,
+               training_episodes=100,
+               stop_threshold=None,
+               env_steps=50,
+               env_eval_steps=500,
+               eval_interval=10,
+               eval_episodes=10,
+               initial_collect_episodes=10,
+               collect_steps_per_iteration=1,
+               buffer_size=1000000,
+               batch_size=256,
+               actor_lr=1e-3,
+               critic_lr=1e-3,
+               tau=1e-2,
+               target_update_period=1,
+               discount=0.99,
+               ou_stddev=0.2,
+               ou_damping=0.15,
+               actor_layer_params=None,
+               critic_action_fc_layer_params=None,
+               critic_observation_fc_layer_params=None,
+               critic_fc_layer_params=None,
+               summary_flush_secs=10):
   algorithm_name = 'DDPG'
 
-  num_episodes = 100
-  initial_collect_episodes = 10
-  collect_steps_per_iteration = 1
+  # Criando o diretório do agente
+  agent_dir = training_utils.create_agent_dir(algorithm_name,
+                                              function,
+                                              dims)
 
-  buffer_size = 1000000
-  batch_size = 256
-
-  actor_lr = 1e-3
-  critic_lr = 1e-3
-  tau = 1e-2
-  target_update_period = 1
-
-  discount = 0.99
-
-  ou_stddev = 0.2
-  ou_damping = 0.15
-
-  actor_layer_params = [256, 256]
-
-  critic_action_fc_layer_params = None
-  critic_observation_fc_layer_params = None
-  # Camadas e unidades para a 'critic network'.
-  critic_fc_layer_params = [256, 256]
-
-  steps = 50  # Quantidade de interações agente-ambiente para treino.
-
-  eval_interval = 10  # Intervalo entre episódios para avaliação.
-  episodes_eval = 10  # Quantidade de episódios de avaliação.
-  steps_eval = 500  # Quantidade de interações agente-ambiente para avaliação.
-
-  dims = 2  # Dimensões da função.
-  function = npf.Rastrigin()
+  # Obtendo função equivalente em TensorFlow (Utilizada no cálculo das métricas)
   tf_function = npf.get_tf_function(function)
 
-  # Criação do ambiente
+  # Criação dos ambientes
   env_training = py_fun_env.PyFunctionEnv(function=function,
                                           dims=dims)
-  env_training = wrappers.TimeLimit(env=env_training, duration=steps)
+  env_training = wrappers.TimeLimit(env=env_training, duration=env_steps)
 
   env_eval = py_fun_env.PyFunctionEnv(function=function,
                                       dims=dims)
-  env_eval = wrappers.TimeLimit(env=env_eval, duration=steps)
+  env_eval = wrappers.TimeLimit(env=env_eval, duration=env_eval_steps)
 
+  # Conversão para TFPyEnvironment's
   tf_env_training = tf_py_environment.TFPyEnvironment(environment=env_training)
   tf_env_eval = tf_py_environment.TFPyEnvironment(environment=env_eval)
 
   # Criação dos SummaryWriter's
   print('Creating logs directories.')
   log_dir, log_eval_dir, log_train_dir = training_utils.create_logs_dir(
-    algorithm_name, function, dims)
+    agent_dir)
 
   train_summary_writer = tf.compat.v2.summary.create_file_writer(
-    log_train_dir, flush_millis=10 * 1000)
+    log_train_dir, flush_millis=summary_flush_secs * 1000)
   train_summary_writer.set_as_default()
 
   eval_summary_writer = tf.compat.v2.summary.create_file_writer(
-    log_eval_dir, flush_millis=10 * 1000)
+    log_eval_dir, flush_millis=summary_flush_secs * 1000)
 
   # Criação das métricas
   train_metrics = [tf_metrics.AverageReturnMetric(),
                    tf_metrics.MaxReturnMetric()]
 
-  eval_metrics = [tf_metrics.AverageReturnMetric(buffer_size=episodes_eval),
+  eval_metrics = [tf_metrics.AverageReturnMetric(buffer_size=eval_episodes),
                   tf_custom_metrics.AverageBestObjectiveValueMetric(
-                    function=tf_function, buffer_size=episodes_eval)]
+                    function=tf_function, buffer_size=eval_episodes)]
 
   # Criação do agente, redes neurais, otimizadores
   obs_spec = tf_env_training.observation_spec()
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
+  if actor_layer_params is None:
+    actor_layer_params = [256, 256]
+
   actor_network = lin_actor_net.LinearActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
     fc_layer_params=actor_layer_params,
     activation_fn=tf.keras.activations.relu)
+
+  if critic_fc_layer_params is None:
+    critic_fc_layer_params = [256, 256]
 
   critic_network = critic_net.CriticNetwork(
     input_tensor_spec=(obs_spec, act_spec),
@@ -153,7 +157,7 @@ if __name__ == '__main__':
   eval_driver = dy_ed.DynamicEpisodeDriver(env=tf_env_eval,
                                            policy=agent.policy,
                                            observers=eval_metrics,
-                                           num_episodes=episodes_eval)
+                                           num_episodes=eval_episodes)
 
   # Conversão das principais funções para tf.function's
   initial_collect_driver.run = common.function(initial_collect_driver.run)
@@ -183,7 +187,6 @@ if __name__ == '__main__':
 
   agent.train_step_counter.assign(0)
 
-
   @tf.function
   def train_phase():
     print('tracing')
@@ -191,11 +194,60 @@ if __name__ == '__main__':
     experience, _ = next(iterator)
     agent.train(experience)
 
+  # Salvando hiperparâmetros antes de iniciar o treinamento
+  hp_dict = {
+    "discount": discount,
+    "ou_stddev": ou_stddev,
+    "ou_damping": ou_damping,
+    "tau": tau,
+    "target_update_period": target_update_period,
+    "training_episodes": training_episodes,
+    "buffer_size": buffer_size,
+    "batch_size": batch_size,
+    "stop_threshold": stop_threshold,
+    "train_env": {
+      "steps": env_steps,
+      "function": function.name,
+      "dims": dims,
+      "domain": function.domain
+    },
+    "eval_env": {
+      "steps": env_eval_steps,
+      "function": function.name,
+      "dims": dims,
+      "domain": function.domain
+    },
+    "networks": {
+      "actor_net": {
+        "class": str(actor_network.__class__),
+        "activation_fn": 'relu',
+        "actor_layers": actor_layer_params
+      },
+      "critic_net": {
+        "class": str(critic_network.__class__),
+        "activation_fn": 'relu',
+        "critic_action_fc_layers": critic_action_fc_layer_params,
+        "critic_obs_fc_layers": critic_observation_fc_layer_params,
+        "critic_joint_layers": critic_fc_layer_params
+      }
+    },
+    "optimizers": {
+      "actor_optimizer": str(actor_optimizer.__class__),
+      "actor_lr": actor_lr,
+      "critic_optimizer": str(critic_optimizer.__class__),
+      "critic_lr": critic_lr
+    }
+  }
+
+  training_utils.save_specs(agent_dir, hp_dict)
+  tf.summary.text("Hyperparameters",
+                  training_utils.json_pretty_string(hp_dict),
+                  step=0)
 
   # Treinamento
-  for ep in range(num_episodes):
+  for ep in range(training_episodes):
     start_time = time.time()
-    for _ in range(steps):
+    for _ in range(env_steps):
       train_phase()
 
       for train_metric in train_metrics:
@@ -205,11 +257,13 @@ if __name__ == '__main__':
       print('-------- Evaluation --------')
       start_eval = time.time()
       results = compute_eval_metrics()
-      print('Average return: {0}'.format(results.get(eval_metrics[0].name)))
-      print('Average best value: {0}'.format(results.get(eval_metrics[1].name)))
+      avg_return = results.get(eval_metrics[0].name)
+      avg_best_value = results.get(eval_metrics[1].name)
+      print('Average return: {0}'.format(avg_return))
+      print('Average best value: {0}'.format(avg_best_value))
       print('Eval delta time: {0:.2f}'.format(time.time() - start_eval))
       print('---------------------------')
-      if results.get(eval_metrics[1].name) < 1e-5:
+      if stop_threshold is not None and avg_best_value < stop_threshold:
         break
 
     delta_time = time.time() - start_time
@@ -225,15 +279,16 @@ if __name__ == '__main__':
                             agent.policy,
                             function,
                             dims,
-                            steps,
+                            env_eval_steps,
                             algorithm_name=algorithm_name,
                             save_to_file=True,
-                            episodes=100)
+                            episodes=100,
+                            agent_dir=agent_dir)
 
   # Salvamento da policy aprendida.
-  # Pasta de saída: output/DDPG-{dims}D-{function.name}/
-  # OBS:. Caso já exista, a saída é sobrescrita.
-  training_utils.save_policy(algorithm_name,
-                             function,
-                             dims,
-                             agent.policy)
+  # Pasta de saída: output/DDPG-{dims}D-{function.name}-{num}/
+  training_utils.save_policy(agent_dir, agent.policy)
+
+
+if __name__ == '__main__':
+  train_ddpg(2, npf.Sphere(), stop_threshold=1e-3)

@@ -37,6 +37,7 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
                    dims,
                    steps,
                    algorithm_name,
+                   agent_dir,
                    save_to_file=False,
                    episodes=100):
   tf_function = npf.get_tf_function(function)
@@ -74,13 +75,10 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
   plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
            rotation_mode="anchor")
   if save_to_file:
-    filename = os.path.join(training_utils.path_agent_dir(
-      algorithm_name,
-      function,
-      dims),
-      '{0}-{1}D-{2}.png'.format(function.name,
-                                dims,
-                                algorithm_name))
+    filename = os.path.join(agent_dir,
+                            '{0}-{1}D-{2}.png'.format(function.name,
+                                                      dims,
+                                                      algorithm_name))
     plt.savefig(fname=filename,
                 bbox_inches='tight')
   plt.show()
