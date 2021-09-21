@@ -34,10 +34,10 @@ class BaselineEvalData(typing.NamedTuple):
 def evaluate_agent(eval_env: tf_environment.TFEnvironment,
                    policy_eval: tf_policy.TFPolicy,
                    function: core.Function,
-                   dims,
-                   steps,
-                   algorithm_name,
-                   agent_dir,
+                   dims: int,
+                   steps: int,
+                   algorithm_name: str,
+                   save_dir: str,
                    save_to_file=False,
                    episodes=100):
   tf_function = npf.get_tf_function(function)
@@ -75,7 +75,7 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
   plt.setp(ax.get_xticklabels(), rotation=45, ha="right",
            rotation_mode="anchor")
   if save_to_file:
-    filename = os.path.join(agent_dir,
+    filename = os.path.join(save_dir,
                             '{0}-{1}D-{2}.png'.format(function.name,
                                                       dims,
                                                       algorithm_name))

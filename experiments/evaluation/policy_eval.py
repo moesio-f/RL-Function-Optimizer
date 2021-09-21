@@ -30,11 +30,13 @@ if __name__ == '__main__':
 
   tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
 
+  # tf.config.run_functions_eagerly(True)
   eval_utils.evaluate_agent(eval_env=tf_eval_env,
                             policy_eval=saved_pol,
                             function=function,
                             dims=dims,
                             steps=steps,
                             algorithm_name='TD3',
-                            save_to_file=True,
-                            episodes=100)
+                            save_to_file=False,
+                            episodes=10,
+                            save_dir=os.getcwd())

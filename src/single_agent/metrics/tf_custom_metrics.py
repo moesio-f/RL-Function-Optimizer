@@ -1,21 +1,13 @@
 """Custom TF Metrics."""
 
 import tensorflow as tf
-import numpy as np
 
 from tf_agents.metrics import tf_metric
 from tf_agents.metrics import tf_metrics
 from tf_agents.utils import common
-from tf_agents.utils import nest_utils
 
 from src.functions import core
 
-
-# AverageBestObjectiveValue: Calcula o valor objetivo médio entre
-#   todos episódios.
-# MinBestObjectiveValue: Calcula o menor valor objetivo de todos episódios
-# MaxBestObjectiveValue: Calcula o maior valor objetivo de todos episódios
-# Average???: Calcula a iteração média onde o agente parou de melhorar
 
 class AverageBestObjectiveValueMetric(tf_metric.TFStepMetric):
   def __init__(self,
@@ -45,7 +37,11 @@ class AverageBestObjectiveValueMetric(tf_metric.TFStepMetric):
                                     self._best_value)):
         self._best_value.assign(self._current_value)
 
-      if trajectory.is_last():
+      # Um Trajectory sempre possui informação de 2 time_step,
+      # quando encontrar um Trajectory onde o time_step atual é o último
+      # e o próximo é o primeiro, deve-se adicionar o melhor valor encontrado
+      # durante esse episódio no buffer.
+      if trajectory.is_boundary():
         self._buffer.add(self._best_value)
 
     return trajectory
@@ -102,8 +98,14 @@ class ConvergenceMultiMetric(tf_metric.TFMultiMetricStepMetric):
 
     self._buffer_single_trajectory.add(self._best_value)
 
-    if trajectory.is_last():
+    # Um Trajectory sempre possui informação de 2 time_step,
+    # quando encontrar um Trajectory onde o time_step atual é o último
+    # e o próximo é o primeiro, deve-se adicionar a "convergência" no buffer.
+    # OBS:. O driver de episódios só contabiliza transições que geram um novo
+    #   episódio, assim sempre teremos o "is_boundary" verdadeiro eventualmente.
+    if trajectory.is_boundary():
       self._buffer.add(tf.squeeze(self._buffer_single_trajectory.data))
+      self._buffer_single_trajectory.clear()
 
     return trajectory
 

@@ -283,7 +283,7 @@ def train_ddpg(dims,
                             algorithm_name=algorithm_name,
                             save_to_file=True,
                             episodes=100,
-                            agent_dir=agent_dir)
+                            save_dir=agent_dir)
 
   # Salvamento da policy aprendida.
   # Pasta de saída: output/DDPG-{dims}D-{function.name}-{num}/
