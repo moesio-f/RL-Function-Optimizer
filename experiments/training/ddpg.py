@@ -1,6 +1,7 @@
 """DDPG para aprender um algoritmo de otimização."""
 
 import time
+import typing
 
 import tensorflow as tf
 from tf_agents.agents.ddpg import ddpg_agent
@@ -18,35 +19,40 @@ from src.single_agent.environments import py_function_environment as py_fun_env
 from src.single_agent.networks import linear_actor_network as lin_actor_net
 from src.single_agent.metrics import tf_custom_metrics
 from src.functions import numpy_functions as npf
+from src.functions import core as functions_core
 
 from experiments.evaluation import utils as eval_utils
 from experiments.training import utils as training_utils
 
 
-def train_ddpg(dims,
-               function,
-               training_episodes=100,
-               stop_threshold=None,
-               env_steps=50,
-               env_eval_steps=500,
-               eval_interval=10,
-               eval_episodes=10,
-               initial_collect_episodes=10,
-               collect_steps_per_iteration=1,
-               buffer_size=1000000,
-               batch_size=256,
-               actor_lr=1e-3,
-               critic_lr=1e-3,
-               tau=1e-2,
-               target_update_period=1,
-               discount=0.99,
-               ou_stddev=0.2,
-               ou_damping=0.15,
-               actor_layer_params=None,
-               critic_action_fc_layer_params=None,
-               critic_observation_fc_layer_params=None,
-               critic_fc_layer_params=None,
-               summary_flush_secs=10):
+def train_ddpg(function: functions_core.Function,
+               dims: int,
+               training_episodes: int = 100,
+               stop_threshold: float = None,
+               env_steps: int = 50,
+               env_eval_steps: int = 500,
+               eval_interval: int = 10,
+               eval_episodes: int = 10,
+               initial_collect_episodes: int = 10,
+               collect_steps_per_iteration: int = 1,
+               buffer_size: int = 1000000,
+               batch_size: int = 256,
+               actor_lr: float = 1e-3,
+               critic_lr: float = 1e-3,
+               tau: float = 1e-2,
+               target_update_period: int = 1,
+               discount: float = 0.99,
+               ou_stddev: float = 0.2,
+               ou_damping: float = 0.15,
+               actor_layers: typing.Union[typing.List,
+                                          typing.Tuple] = None,
+               critic_action_layers: typing.Union[typing.List,
+                                                  typing.Tuple] = None,
+               critic_observation_layers: typing.Union[typing.List,
+                                                       typing.Tuple] = None,
+               critic_joint_layers: typing.Union[typing.List,
+                                                 typing.Tuple] = None,
+               summary_flush_secs: int = 10):
   algorithm_name = 'DDPG'
 
   # Criando o diretório do agente
@@ -95,23 +101,23 @@ def train_ddpg(dims,
   act_spec = tf_env_training.action_spec()
   time_spec = tf_env_training.time_step_spec()
 
-  if actor_layer_params is None:
-    actor_layer_params = [256, 256]
+  if actor_layers is None:
+    actor_layers = [256, 256]
 
   actor_network = lin_actor_net.LinearActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
-    fc_layer_params=actor_layer_params,
+    fc_layer_params=actor_layers,
     activation_fn=tf.keras.activations.relu)
 
-  if critic_fc_layer_params is None:
-    critic_fc_layer_params = [256, 256]
+  if critic_joint_layers is None:
+    critic_joint_layers = [256, 256]
 
   critic_network = critic_net.CriticNetwork(
     input_tensor_spec=(obs_spec, act_spec),
-    observation_fc_layer_params=critic_observation_fc_layer_params,
-    action_fc_layer_params=critic_action_fc_layer_params,
-    joint_fc_layer_params=critic_fc_layer_params,
+    observation_fc_layer_params=critic_observation_layers,
+    action_fc_layer_params=critic_action_layers,
+    joint_fc_layer_params=critic_joint_layers,
     activation_fn=tf.keras.activations.relu,
     output_activation_fn=tf.keras.activations.linear)
 
@@ -221,14 +227,14 @@ def train_ddpg(dims,
       "actor_net": {
         "class": str(actor_network.__class__),
         "activation_fn": 'relu',
-        "actor_layers": actor_layer_params
+        "actor_layers": actor_layers
       },
       "critic_net": {
         "class": str(critic_network.__class__),
         "activation_fn": 'relu',
-        "critic_action_fc_layers": critic_action_fc_layer_params,
-        "critic_obs_fc_layers": critic_observation_fc_layer_params,
-        "critic_joint_layers": critic_fc_layer_params
+        "critic_action_fc_layers": critic_action_layers,
+        "critic_obs_fc_layers": critic_observation_layers,
+        "critic_joint_layers": critic_joint_layers
       }
     },
     "optimizers": {
@@ -291,4 +297,4 @@ def train_ddpg(dims,
 
 
 if __name__ == '__main__':
-  train_ddpg(2, npf.Sphere(), stop_threshold=1e-3)
+  train_ddpg(npf.Sphere(), 2, stop_threshold=1e-3)
