@@ -1,7 +1,6 @@
 """DDPG para aprender um algoritmo de otimização."""
 
 import time
-import typing
 
 import tensorflow as tf
 from tf_agents.agents.ddpg import ddpg_agent
@@ -20,6 +19,7 @@ from src.single_agent.networks import linear_actor_network as lin_actor_net
 from src.single_agent.metrics import tf_custom_metrics
 from src.functions import numpy_functions as npf
 from src.functions import core as functions_core
+from src.single_agent.typing.types import LayerParam
 
 from experiments.evaluation import utils as eval_utils
 from experiments.training import utils as training_utils
@@ -27,32 +27,30 @@ from experiments.training import utils as training_utils
 
 def train_ddpg(function: functions_core.Function,
                dims: int,
-               training_episodes: int = 100,
+               training_episodes: int = 2000,
                stop_threshold: float = None,
-               env_steps: int = 50,
+               env_steps: int = 250,
                env_eval_steps: int = 500,
-               eval_interval: int = 10,
+               eval_interval: int = 100,
                eval_episodes: int = 10,
-               initial_collect_episodes: int = 10,
+               initial_collect_episodes: int = 20,
                collect_steps_per_iteration: int = 1,
                buffer_size: int = 1000000,
                batch_size: int = 256,
-               actor_lr: float = 1e-3,
-               critic_lr: float = 1e-3,
-               tau: float = 1e-2,
-               target_update_period: int = 1,
+               actor_lr: float = 3e-4,
+               critic_lr: float = 3e-4,
+               tau: float = 5e-3,
+               target_update_period: int = 2,
                discount: float = 0.99,
                ou_stddev: float = 0.2,
                ou_damping: float = 0.15,
-               actor_layers: typing.Union[typing.List,
-                                          typing.Tuple] = None,
-               critic_action_layers: typing.Union[typing.List,
-                                                  typing.Tuple] = None,
-               critic_observation_layers: typing.Union[typing.List,
-                                                       typing.Tuple] = None,
-               critic_joint_layers: typing.Union[typing.List,
-                                                 typing.Tuple] = None,
-               summary_flush_secs: int = 10):
+               actor_layers: LayerParam = None,
+               critic_action_layers: LayerParam = None,
+               critic_observation_layers: LayerParam = None,
+               critic_joint_layers: LayerParam = None,
+               summary_flush_secs: int = 10,
+               debug_summaries: bool = False,
+               summarize_grads_and_vars: bool = True):
   algorithm_name = 'DDPG'
 
   # Criando o diretório do agente
@@ -138,7 +136,9 @@ def train_ddpg(function: functions_core.Function,
     target_update_tau=tau,
     target_update_period=target_update_period,
     train_step_counter=train_step,
-    gamma=discount)
+    gamma=discount,
+    debug_summaries=debug_summaries,
+    summarize_grads_and_vars=summarize_grads_and_vars)
 
   agent.initialize()
 
@@ -297,4 +297,4 @@ def train_ddpg(function: functions_core.Function,
 
 
 if __name__ == '__main__':
-  train_ddpg(npf.Sphere(), 2, stop_threshold=1e-3)
+  train_ddpg(npf.Sphere(), 30)

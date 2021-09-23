@@ -1,7 +1,6 @@
 """TD3 para aprender um algoritmo de otimização."""
 
 import time
-import typing
 
 import tensorflow as tf
 from tf_agents.agents.td3 import td3_agent
@@ -20,20 +19,19 @@ from src.single_agent.environments import py_function_environment as py_fun_env
 from src.single_agent.metrics import tf_custom_metrics
 from src.functions import numpy_functions as npf
 from src.functions import core as functions_core
+from src.single_agent.typing.types import LayerParam
 
 from experiments.evaluation import utils as eval_utils
 from experiments.training import utils as training_utils
 
-layer_param = typing.Union[typing.List, typing.Tuple]
-
 
 def train_td3(function: functions_core.Function,
               dims: int,
-              training_episodes=2000,
+              training_episodes: int = 2000,
               stop_threshold: float = None,
               env_steps: int = 250,
               env_eval_steps: int = 500,
-              eval_interval: int = 10,
+              eval_interval: int = 100,
               eval_episodes: int = 10,
               initial_collect_episodes: int = 20,
               collect_steps_per_iteration: int = 1,
@@ -48,11 +46,13 @@ def train_td3(function: functions_core.Function,
               exploration_noise_std: float = 0.1,
               target_policy_noise: float = 0.2,
               target_policy_noise_clip: float = 0.5,
-              actor_layers: layer_param = None,
-              critic_action_layers: layer_param = None,
-              critic_observation_layers: layer_param = None,
-              critic_joint_layers: layer_param = None,
-              summary_flush_secs: int = 10):
+              actor_layers: LayerParam = None,
+              critic_action_layers: LayerParam = None,
+              critic_observation_layers: LayerParam = None,
+              critic_joint_layers: LayerParam = None,
+              summary_flush_secs: int = 10,
+              debug_summaries: bool = False,
+              summarize_grads_and_vars: bool = False):
   algorithm_name = 'TD3'
 
   # Criando o diretório do agente
@@ -139,7 +139,9 @@ def train_td3(function: functions_core.Function,
     actor_update_period=actor_update_period,
     target_update_period=target_update_period,
     train_step_counter=train_step,
-    gamma=discount)
+    gamma=discount,
+    debug_summaries=debug_summaries,
+    summarize_grads_and_vars=summarize_grads_and_vars)
 
   agent.initialize()
 
@@ -202,6 +204,54 @@ def train_td3(function: functions_core.Function,
     agent.train(experience)
 
   # Salvando hiperparâmetros antes de iniciar o treinamento
+  hp_dict = {
+    "discount": discount,
+    "exploration_noise_std": exploration_noise_std,
+    "tau": tau,
+    "target_update_period": target_update_period,
+    "actor_update_period": actor_update_period,
+    "training_episodes": training_episodes,
+    "buffer_size": buffer_size,
+    "batch_size": batch_size,
+    "stop_threshold": stop_threshold,
+    "train_env": {
+      "steps": env_steps,
+      "function": function.name,
+      "dims": dims,
+      "domain": function.domain
+    },
+    "eval_env": {
+      "steps": env_eval_steps,
+      "function": function.name,
+      "dims": dims,
+      "domain": function.domain
+    },
+    "networks": {
+      "actor_net": {
+        "class": str(actor_network.__class__),
+        "activation_fn": 'relu',
+        "actor_layers": actor_layers
+      },
+      "critic_net": {
+        "class": str(critic_network.__class__),
+        "activation_fn": 'relu',
+        "critic_action_fc_layers": critic_action_layers,
+        "critic_obs_fc_layers": critic_observation_layers,
+        "critic_joint_layers": critic_joint_layers
+      }
+    },
+    "optimizers": {
+      "actor_optimizer": str(actor_optimizer.__class__),
+      "actor_lr": actor_lr,
+      "critic_optimizer": str(critic_optimizer.__class__),
+      "critic_lr": critic_lr
+    }
+  }
+
+  training_utils.save_specs(agent_dir, hp_dict)
+  tf.summary.text("Hyperparameters",
+                  training_utils.json_pretty_string(hp_dict),
+                  step=0)
 
   # Treinamento
   for ep in range(training_episodes):
@@ -250,4 +300,4 @@ def train_td3(function: functions_core.Function,
 
 
 if __name__ == '__main__':
-  train_td3(npf.Ackley(), 2, stop_threshold=1e-2)
+  train_td3(npf.Ackley(), 2)
