@@ -27,6 +27,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(input.dtype, output.dtype,
       f"{function.name} output is {output.dtype} when should be {input.dtype}.")
 
+  
   def test_ackley(self):
     f = npf.Ackley()
     array_expected_result = 8.43469444443746497
@@ -41,6 +42,7 @@ class TestNumpyFunctions(unittest.TestCase):
     result = f(self.zero)
     self.assertEqual(result, 4.44089209850062616e-16)
     self.check_dtypes(f, self.array, result)
+  
   
   def test_griewank(self):
     f = npf.Griewank()
@@ -57,6 +59,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
   
+  
   def test_rastrigin(self):
     f = npf.Rastrigin()
     array_expected_result = 30.0
@@ -72,6 +75,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
+  
   def test_levy(self):
     f = npf.Levy()
     array_expected_result = 2.76397190019909811
@@ -87,6 +91,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 0.897533662350923467)
     self.check_dtypes(f, self.array, result)
 
+  
   def test_rosenbrock(self):
     f = npf.Rosenbrock()
     array_expected_result = 2705.0
@@ -102,6 +107,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 3.0)
     self.check_dtypes(f, self.array, result)
 
+  
   def test_zakharov(self):
     f = npf.Zakharov()
     array_expected_result = 50880.0
@@ -117,6 +123,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
+  
   def test_sum_squares(self):
     f = npf.SumSquares()
     array_expected_result = 100.0
@@ -131,6 +138,7 @@ class TestNumpyFunctions(unittest.TestCase):
     result = f(self.zero)
     self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
+  
   
   def test_sphere(self):
     f = npf.Sphere()
@@ -147,6 +155,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
+  
   def test_rotated_hyper_ellipsoid(self):
     f = npf.RotatedHyperEllipsoid()
     array_expected_result = 50.0
@@ -162,6 +171,7 @@ class TestNumpyFunctions(unittest.TestCase):
     self.assertEqual(result, 0.0)
     self.check_dtypes(f, self.array, result)
 
+  
   def test_dixon_price(self):
     f = npf.DixonPrice()
     array_expected_result = 4230.0
@@ -176,6 +186,7 @@ class TestNumpyFunctions(unittest.TestCase):
     result = f(self.zero)
     self.assertEqual(result, 1.0)
     self.check_dtypes(f, self.array, result)
+
 
 
 def test_random():

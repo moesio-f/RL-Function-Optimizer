@@ -28,7 +28,7 @@ class MultiAgentFunctionEnv(gym.Env):
       min, max = self.func.domain
       self.states = [np.clip(x, min, max) for x in self.states]
 
-    rewards = [-self.func(s) for s in self.states]
+    rewards = -self.func(np.stack(self.states))
 
     dones = [not obs_space.contains(state)
       for obs_space, state in zip(self.observation_space, self.states)]
