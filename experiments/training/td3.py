@@ -103,22 +103,27 @@ def train_td3(function: functions_core.Function,
   if actor_layers is None:
     actor_layers = [256, 256]
 
+  actor_activation_fn = tf.keras.activations.relu
+
   actor_network = actor_net.ActorNetwork(
     input_tensor_spec=obs_spec,
     output_tensor_spec=act_spec,
     fc_layer_params=actor_layers,
-    activation_fn=tf.keras.activations.relu)
+    activation_fn=actor_activation_fn)
 
   if critic_joint_layers is None:
     critic_joint_layers = [256, 256]
+
+  critic_activation_fn = tf.keras.activations.relu
+  critic_output_activation_fn = tf.keras.activations.linear
 
   critic_network = critic_net.CriticNetwork(
     input_tensor_spec=(obs_spec, act_spec),
     observation_fc_layer_params=critic_observation_layers,
     action_fc_layer_params=critic_action_layers,
     joint_fc_layer_params=critic_joint_layers,
-    activation_fn=tf.keras.activations.relu,
-    output_activation_fn=tf.keras.activations.linear)
+    activation_fn=critic_activation_fn,
+    output_activation_fn=critic_output_activation_fn)
 
   actor_optimizer = tf.keras.optimizers.Adam(learning_rate=actor_lr)
   critic_optimizer = tf.keras.optimizers.Adam(learning_rate=critic_lr)
@@ -228,22 +233,23 @@ def train_td3(function: functions_core.Function,
     },
     "networks": {
       "actor_net": {
-        "class": str(actor_network.__class__),
-        "activation_fn": 'relu',
+        "class": type(actor_network).__name__,
+        "activation_fn": actor_activation_fn.__name__,
         "actor_layers": actor_layers
       },
       "critic_net": {
-        "class": str(critic_network.__class__),
-        "activation_fn": 'relu',
+        "class": type(critic_network).__name__,
+        "activation_fn": critic_activation_fn.__name__,
+        "output_activation_fn": critic_output_activation_fn.__name__,
         "critic_action_fc_layers": critic_action_layers,
         "critic_obs_fc_layers": critic_observation_layers,
         "critic_joint_layers": critic_joint_layers
       }
     },
     "optimizers": {
-      "actor_optimizer": str(actor_optimizer.__class__),
+      "actor_optimizer": type(actor_optimizer).__name__,
       "actor_lr": actor_lr,
-      "critic_optimizer": str(critic_optimizer.__class__),
+      "critic_optimizer": type(critic_optimizer).__name__,
       "critic_lr": critic_lr
     }
   }
@@ -295,9 +301,14 @@ def train_td3(function: functions_core.Function,
                             save_dir=agent_dir)
 
   # Salvamento da policy aprendida.
-  # Pasta de saída: output/TD3-{dims}D-{function.name}/
+  # Pasta de saída: output/TD3-{dims}D-{function.name}-{num}/policy
   training_utils.save_policy(agent_dir, agent.policy)
 
 
 if __name__ == '__main__':
-  train_td3(npf.Ackley(), 2)
+  train_td3(npf.Ackley(), 2,
+            env_steps=50,
+            eval_interval=10,
+            env_eval_steps=100,
+            stop_threshold=1e-2,
+            training_episodes=500)
