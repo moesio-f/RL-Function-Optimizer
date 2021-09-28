@@ -41,8 +41,10 @@ def evaluate_agent(eval_env: tf_environment.TFEnvironment,
                    save_to_file=False,
                    episodes=100):
   tf_function = npf.get_tf_function(function)
-  eval_metrics = [tf_custom_metrics.ConvergenceMultiMetric(steps + 1,
-                                                           tf_function)]
+  eval_metrics = [tf_custom_metrics.ConvergenceMultiMetric(
+    trajectory_size=steps + 1,
+    function=tf_function,
+    buffer_size=episodes)]
 
   eval_driver = dy_ed.DynamicEpisodeDriver(env=eval_env,
                                            policy=policy_eval,
