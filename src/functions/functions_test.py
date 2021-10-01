@@ -6,14 +6,45 @@ import unittest
 
 import src.functions.tensorflow_functions as tff
 import src.functions.numpy_functions as npf
+from src.functions import core
+
+array = [1,2,3,4]
+array_lockup = {
+  "Ackley"                 : 8.43469444443746497,
+  "Griewank"               : 1.00187037800320189,
+  "Rastrigin"              : 30.0,
+  "Levy"                   : 2.76397190019909811,
+  "Rosenbrock"             : 2705.0,
+  "Zakharov"               : 50880.0,
+  "SumSquares"             : 100.0,
+  "Sphere"                 : 30.0,
+  "RotatedHyperEllipsoid"  : 50.0,
+  "DixonPrice"             : 4230.0,
+}
+
+zeros = [0,0,0,0]
+zero_lockup = {
+  "Ackley"                 : 4.44089209850062616e-16,
+  "Griewank"               : 0.0,
+  "Rastrigin"              : 0.0,
+  "Levy"                   : 0.897533662350923467,
+  "Rosenbrock"             : 3.0,
+  "Zakharov"               : 0.0,
+  "SumSquares"             : 0.0,
+  "Sphere"                 : 0.0,
+  "RotatedHyperEllipsoid"  : 0.0,
+  "DixonPrice"             : 1.0,
+}
 
 class TestNumpyFunctions(unittest.TestCase):
   batch_size = 2 # batch size of array in multiple input testing
+  dtype = np.float64
+
   @classmethod
   def setUpClass(cls) -> None:
-    cls.array = np.array([1,2,3,4], dtype=np.float64)
+    cls.array = np.array(array, cls.dtype)
     cls.batch = cls.array[None].repeat(cls.batch_size, axis=0)
-    cls.zero = np.array([0,0,0,0], dtype=np.float64)
+    cls.zero = np.array(zeros, cls.dtype)
 
   @classmethod
   def tearDownClass(cls) -> None:
@@ -21,170 +52,56 @@ class TestNumpyFunctions(unittest.TestCase):
     del cls.zero
     del cls.batch
   
-  # check dtypes between function's input and output
-  def check_dtypes(self, function, input, output):
-    self.assertEqual(input.dtype, output.dtype,
-      f"{function.name} output is {output.dtype} when should be {input.dtype}.")
+  def default_test(self, f: core.Function):
+    array_result = np.array(array_lockup[f.name], self.dtype)
+    batch_result = np.array(array_result).repeat(self.batch_size)
+    zero_result = np.array(zero_lockup[f.name], self.dtype)
 
-  
+    # Test default value [1,2,3,4]
+    result = f(self.array)
+    self.assertEqual(result, array_result)
+
+    # Test batch of default value [[1,2,3,4],[1,2,3,4], ...]
+    result = f(self.batch)
+    self.assertTrue(np.array_equal(result, batch_result))
+    self.assertEqual(result.shape, batch_result.shape)
+
+    result = f(self.zero)
+    self.assertEqual(result, zero_result)
+
+    # Testing shape and dtype
+    self.assertEqual(result.shape, zero_result.shape)
+    self.assertEqual(result.dtype, zero_result.dtype)
+
   def test_ackley(self):
-    f = npf.Ackley()
-    array_result = 8.43469444443746497
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
+    self.default_test(npf.Ackley())
 
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 4.44089209850062616e-16)
-    self.check_dtypes(f, self.array, result)
-  
-  
   def test_griewank(self):
-    f = npf.Griewank()
-    array_result = 1.00187037800320189
-    batch_result = np.array(array_result).repeat(self.batch_size)
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.0)
-    self.check_dtypes(f, self.array, result)
-  
+    self.default_test(npf.Griewank())
   
   def test_rastrigin(self):
-    f = npf.Rastrigin()
-    array_result = 30.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.0)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(npf.Rastrigin())
   
   def test_levy(self):
-    f = npf.Levy()
-    array_result = 2.76397190019909811
-    batch_result = np.array(array_result).repeat(self.batch_size)
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.897533662350923467)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(npf.Levy())
   
   def test_rosenbrock(self):
-    f = npf.Rosenbrock()
-    array_result = 2705.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 3.0)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(npf.Rosenbrock())
   
   def test_zakharov(self):
-    f = npf.Zakharov()
-    array_result = 50880.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.0)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(npf.Zakharov())
   
   def test_sum_squares(self):
-    f = npf.SumSquares()
-    array_result = 100.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.0)
-    self.check_dtypes(f, self.array, result)
-  
+    self.default_test(npf.SumSquares())
   
   def test_sphere(self):
-    f = npf.Sphere()
-    array_result = 30.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.0)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(npf.Sphere())
   
   def test_rotated_hyper_ellipsoid(self):
-    f = npf.RotatedHyperEllipsoid()
-    array_result = 50.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 0.0)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(npf.RotatedHyperEllipsoid())
   
   def test_dixon_price(self):
-    f = npf.DixonPrice()
-    array_result = 4230.0
-    batch_result = np.array(array_result).repeat(self.batch_size)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(np.array_equal(result, batch_result))
-
-    result = f(self.zero)
-    self.assertEqual(result, 1.0)
-    self.check_dtypes(f, self.array, result)
+    self.default_test(npf.DixonPrice())
 
 
 class TestTensorflowFunctions(unittest.TestCase):
@@ -194,300 +111,78 @@ class TestTensorflowFunctions(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls) -> None:
-    cls.array = tf.constant([1,2,3,4], dtype=cls.dtype)
+    cls.array = tf.constant(array, dtype=cls.dtype)
     cls.batch = tf.repeat(cls.array[None], cls.batch_size, 0)
-    cls.zero = tf.zeros((4,), dtype=cls.dtype)
+    cls.zeros = tf.constant(zeros, dtype=cls.dtype)
 
   @classmethod
   def tearDownClass(cls) -> None:
     del cls.array
-    del cls.zero
+    del cls.zeros
     del cls.batch
   
-  # check dtypes between function's input and output
-  def check_dtypes(self, function, input, output):
-    self.assertEqual(input.dtype, output.dtype,
-      f"{function} output is {output.dtype} when should be {input.dtype}.")
-  
-
   # Get batch expected result from array expected result
-  def batch_result(self, array_result):
+  def batch_result(self, array_result: tf.Tensor) -> tf.Tensor:
     return tf.repeat(tf.expand_dims(array_result, 0), self.batch_size, 0)
-  
 
-  def check_shapes(self, output: tf.Tensor, expected_output: tf.Tensor):
-    self.assertEqual(output.shape, expected_output.shape)
+  # Test a given function
+  def default_test(self, f: core.Function):
+    array_result = tf.constant(array_lockup[f.name], self.dtype)
+    batch_result = self.batch_result(array_result)
+    zero_result = tf.constant(zero_lockup[f.name], self.dtype)
 
+    # Test default value [1,2,3,4]
+    result = f(self.array)
+    self.assertEqual(result, array_result)
 
+    # Test batch of default value [[1,2,3,4],[1,2,3,4], ...]
+    result = f(self.batch)
+    self.assertTrue(tf.reduce_all(result == batch_result))
+    self.assertEqual(result.shape, batch_result.shape)
+
+    result = f(self.zeros)
+    self.assertEqual(result, zero_result)
+
+    # Testing Tracing
+    f = tf.function(f)
+
+    # Test default value [1,2,3,4] after Tracing
+    result = f(self.array)
+    self.assertEqual(result, array_result)
+
+    # Testing shape and dtype
+    self.assertEqual(result.shape, array_result.shape)
+    self.assertEqual(result.dtype, array_result.dtype)
+    
   def test_ackley(self):
-    f = tff.Ackley()
-
-    # Expected Values
-    array_result = tf.constant(8.43469444443746497, self.dtype)
-    zero_result = tf.constant(4.44089209850062616e-16, self.dtype)
-    batch_result = self.batch_result(array_result)
+    self.default_test(tff.Ackley())
     
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-  
-  
   def test_griewank(self):
-    f = tff.Griewank()
-
-    # Expected Values
-    array_result = tf.constant(1.00187037800320189, self.dtype)
-    zero_result = tf.constant(0.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.Griewank())
   
   def test_rastrigin(self):
-    f = tff.Rastrigin()
-
-    # Expected Values
-    array_result = tf.constant(30.0, self.dtype)
-    zero_result = tf.constant(0.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.Rastrigin())
   
   def test_levy(self):
-    f = tff.Levy()
-
-    # Expected Values
-    array_result = tf.constant(2.76397190019909811, self.dtype)
-    zero_result = tf.constant(0.897533662350923467, self.dtype)
-    batch_result = self.batch_result(array_result)
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.Levy())
   
   def test_rosenbrock(self):
-    f = tff.Rosenbrock()
-
-    # Expected Values
-    array_result = tf.constant(2705.0, self.dtype)
-    zero_result = tf.constant(3.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.Rosenbrock())
   
   def test_zakharov(self):
-    f = tff.Zakharov()
-
-    # Expected Values
-    array_result = tf.constant(50880.0, self.dtype)
-    zero_result = tf.constant(0.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.Zakharov())
   
   def test_sum_squares(self):
-    f = tff.SumSquares()
-
-    # Expected Values
-    array_result = tf.constant(100.0, self.dtype)
-    zero_result = tf.constant(0.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.SumSquares())
   
   def test_sphere(self):
-    f = tff.Sphere()
-
-    # Expected Values
-    array_result = tf.constant(30.0, self.dtype)
-    zero_result = tf.constant(0.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-  
+    self.default_test(tff.Sphere())
   
   def test_rotated_hyper_ellipsoid(self):
-    f = tff.RotatedHyperEllipsoid()
-
-    # Expected Values
-    array_result = tf.constant(50.0, self.dtype)
-    zero_result = tf.constant(0.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-    
+    self.default_test(tff.RotatedHyperEllipsoid())
 
   def test_dixon_price(self):
-    f = tff.DixonPrice()
-
-    # Expected Values
-    array_result = tf.constant(4230.0, self.dtype)
-    zero_result = tf.constant(1.0, self.dtype)
-    batch_result = self.batch_result(array_result)
-    
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    result = f(self.batch)
-    self.assertTrue(tf.reduce_all(result == batch_result))
-    self.check_shapes(result, batch_result)
-
-    result = f(self.zero)
-    self.assertEqual(result, zero_result)
-
-    f = tf.function(f) # Testing Tracing
-
-    result = f(self.array)
-    self.assertEqual(result, array_result)
-
-    self.check_shapes(result, zero_result)
-    self.check_dtypes(f, self.array, result)
-
+    self.default_test(tff.DixonPrice())
 
 def test_random():
   list_tf_functions = tff.list_all_functions()

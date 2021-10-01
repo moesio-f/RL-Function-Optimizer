@@ -50,7 +50,7 @@ class Griewank(core.Function):
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
-    return result
+    return np.squeeze(result)
 
 
 class Rastrigin(core.Function):
@@ -92,7 +92,7 @@ class Levy(core.Function):
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
-    return result
+    return np.squeeze(result)
 
 
 class Rosenbrock(core.Function):
@@ -110,7 +110,7 @@ class Rosenbrock(core.Function):
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
-    return result
+    return np.squeeze(result)
 
 
 class Zakharov(core.Function):
@@ -200,7 +200,7 @@ class RotatedHyperEllipsoid(core.Function):
     
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
-    return result  
+    return np.squeeze(result)
 
 
 class DixonPrice(core.Function):
@@ -222,7 +222,7 @@ class DixonPrice(core.Function):
 
     if result.dtype != x.dtype:
       result = result.astype(x.dtype)
-    return result
+    return np.squeeze(result)
 
 
 def list_all_functions() -> List[core.Function]:
