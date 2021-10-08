@@ -1,99 +1,124 @@
 """Realiza a comparação da convergência com os diferentes algoritmos."""
 
 import os
-from typing import List, NamedTuple
+import collections
+from typing import List, Tuple
+import functools
 
 import numpy as np
 import tensorflow as tf
 import pandas as pd
 
-from tf_agents.environments import tf_environment
 from tf_agents.environments import tf_py_environment
 from tf_agents.environments import wrappers
+from tf_agents.drivers import dynamic_episode_driver as dy_ed
 from tf_agents.policies import tf_policy
+from tf_agents.utils import common
 
 from src.single_agent.environments import py_function_environment as py_fun_env
+from src.single_agent.metrics import tf_custom_metrics
+from src.single_agent.typing.types import TFMetric
 from src.functions import core
 from src.functions import numpy_functions as npf
 from src import config
+
 from experiments.evaluation import utils as eval_utils
 
 MODELS_DIR = config.POLICIES_DIR
 
 
-class Trajectory(NamedTuple):
-  list_best_values: np.ndarray
-  name: str
+class DummyClass:
+  def __init__(self,
+               policy: tf_policy.TFPolicy,
+               driver: dy_ed.DynamicEpisodeDriver,
+               tf_env: tf_py_environment.TFPyEnvironment,
+               metrics: List[TFMetric],
+               algorithm_name: str):
+    self._policy = policy
+    self._driver = driver
+    self._tf_env = tf_env
+    self._algorithm_name = algorithm_name
+    self._metrics = metrics
+    self._last_results = None
+    self._convergence_metric_idx = None
+
+    for idx, metric in enumerate(self._metrics):
+      if isinstance(metric, tf_custom_metrics.ConvergenceMultiMetric):
+        self._convergence_metric_idx = idx
+
+    assert self._convergence_metric_idx is not None
+
+  def run(self, initial_time_step):
+    self._update_current_time_step(initial_time_step, 0)
+    self._driver.run(time_step=initial_time_step)
+
+  def average_trajectory(self):
+    if self._last_results is None:
+      self.compute_results()
+    return self._last_results.get(
+      self._metrics[self._convergence_metric_idx].name)[0].numpy()
+
+  def compute_results(self):
+    self._last_results = collections.OrderedDict(
+      [(metric.name, metric.result()) for metric in
+       self._metrics])
+    return self._last_results
+
+  def _update_current_time_step(self, new_time_step, num_steps: int):
+	# Erro atual: Trajetória inicial possui 2 time_steps iniciais (função reset() sendo chamada)
+	# Possibilidade 1: Alterar demais time_steps dos ambientes envolvidos (PyEnv, TimeLimit)
+	#	bem como suas variáveis de controle (duration, episode_ended, ...)
+	# Possibilidade 2: Alterar estrutura da classe para criar um novo
+	#	ambiente sempre que for rodar um episódio de teste (Armazenar dados num TFDeque criado pela
+	#	classe)
+    self._tf_env._time_step = new_time_step
+    self._tf_env._num_steps = num_steps
+    self._driver.env._time_step = new_time_step
 
 
-def write_to_csv(trajectories: List[Trajectory],
+def write_to_csv(trajectories: List[Tuple],
                  function: core.Function,
                  dims: int):
   file_name = f'{function.name}_{dims}D_convergence.csv'
-  data = pd.DataFrame({t.name: t.list_best_values for t in trajectories})
+  data = pd.DataFrame({t[0]: t[1] for t in trajectories})
   data.to_csv(file_name, index_label='iteration')
 
 
-def run_episode(tf_eval_env: tf_environment.TFEnvironment,
-                policy: tf_policy.TFPolicy,
-                trajectory_name: str,
-                function: core.Function) -> Trajectory:
-  time_step = tf_eval_env.current_time_step()
+def create_evaluator(algorithm_name: str,
+                     function: core.Function,
+                     tf_function: core.Function,
+                     dims: int,
+                     steps: int,
+                     episodes: int,
+                     use_tf_function: bool = False):
+  policy = tf.compat.v2.saved_model.load(
+    policy_path(algorithm_name,
+                dims,
+                function))
 
-  best_pos = time_step.observation.numpy()[0]
-  best_solution = function(best_pos)
-  best_values_at_it = [best_solution]
+  tf_env = tf_py_environment.TFPyEnvironment(
+    environment=wrappers.TimeLimit(
+      py_fun_env.PyFunctionEnv(function, dims),
+      duration=steps))
 
-  it = 0
+  eval_metrics = [tf_custom_metrics.ConvergenceMultiMetric(
+    trajectory_size=steps + 1,
+    function=tf_function,
+    buffer_size=episodes)]
 
-  while True:
-    it += 1
-    action_step = policy.action(time_step)
-    time_step = tf_eval_env.step(action_step.action)
+  driver = dy_ed.DynamicEpisodeDriver(env=tf_env,
+                                      policy=policy,
+                                      observers=eval_metrics,
+                                      num_episodes=1)
 
-    pos = time_step.observation.numpy()[0]
-    obj_value = function(pos)
+  if use_tf_function:
+    driver.run = common.function(driver.run)
 
-    if obj_value < best_solution:
-      best_solution = obj_value
-
-    if time_step.is_last():
-      break
-    best_values_at_it.append(best_solution)
-
-  return Trajectory(list_best_values=np.array(best_values_at_it,
-                                              dtype=np.float32),
-                    name=trajectory_name)
-
-
-def run_rl_agent(policy: tf_policy.TFPolicy,
-                 trajectory_name: str,
-                 num_steps: int,
-                 function: core.Function,
-                 dims: int,
-                 initial_time_step) -> Trajectory:
-  env = py_fun_env.PyFunctionEnv(function, dims)
-  env = wrappers.TimeLimit(env, duration=num_steps)
-
-  tf_eval_env = tf_py_environment.TFPyEnvironment(environment=env)
-  tf_eval_env._time_step = initial_time_step
-
-  return run_episode(tf_eval_env=tf_eval_env,
-                     policy=policy,
-                     trajectory_name=trajectory_name,
-                     function=function)
-
-
-def get_average_trajectory(trajectories: List[Trajectory]):
-  best_values = []
-  name = trajectories[0].name
-
-  for t in trajectories:
-    best_values.append(t.list_best_values)
-
-  return Trajectory(
-    list_best_values=np.mean(np.array(best_values, dtype=np.float32), axis=0),
-    name=name)
+  return DummyClass(policy=policy,
+                    driver=driver,
+                    metrics=eval_metrics,
+                    tf_env=tf_env,
+                    algorithm_name=algorithm_name)
 
 
 def policy_path(agent: str, dims: int, fun: core.Function):
@@ -104,73 +129,44 @@ if __name__ == '__main__':
   # Dimensões das funções.
   DIMS = 30
   # Quantidade de episódios para o cálculo das medidas.
-  EPISODES = 100
+  EPISODES = 2
   # Quantidade de interações agente-ambiente.
-  STEPS = 500
+  STEPS = 4
   # Lista com as funções que serão testadas.
   FUNCTIONS = [npf.Sphere(), npf.Ackley()]
+
+  tf.config.run_functions_eagerly(True)
 
   for FUNCTION in FUNCTIONS:
     ENV = py_fun_env.PyFunctionEnv(FUNCTION, DIMS)
     ENV = wrappers.TimeLimit(ENV, duration=STEPS)
     TF_ENV = tf_py_environment.TFPyEnvironment(environment=ENV)
-    TF_FUNCTION = eval_utils.get_tf_function(FUNCTION)
+    TF_FUNCTION = npf.get_tf_function(FUNCTION)
 
-    reinforce_policy = tf.compat.v2.saved_model.load(policy_path('ReinforceAgent',
-                                                                 DIMS,
-                                                                 FUNCTION))
-    reinforce_trajectories: List[Trajectory] = []
+    create_evaluator_ = functools.partial(create_evaluator,
+                                          function=FUNCTION,
+                                          tf_function=TF_FUNCTION,
+                                          dims=DIMS,
+                                          steps=STEPS,
+                                          episodes=EPISODES)
 
-    sac_policy = tf.compat.v2.saved_model.load(policy_path('SacAgent',
-                                                           DIMS,
-                                                           FUNCTION))
-    sac_trajectories: List[Trajectory] = []
-
-    td3_policy = tf.compat.v2.saved_model.load(policy_path('Td3Agent',
-                                                           DIMS,
-                                                           FUNCTION))
-    td3_trajectories: List[Trajectory] = []
-
-    ppo_policy = tf.compat.v2.saved_model.load(policy_path('PPOClipAgent',
-                                                           DIMS,
-                                                           FUNCTION))
-    ppo_trajectories: List[Trajectory] = []
+    reinforce_evaluator = create_evaluator_('ReinforceAgent')
+    sac_evaluator = create_evaluator_('SacAgent')
+    td3_evaluator = create_evaluator_('Td3Agent')
+    ppo_evaluator = create_evaluator_('PPOClipAgent')
 
     for _ in range(EPISODES):
       initial_ts = TF_ENV.reset()
 
-      reinforce_trajectories.append(run_rl_agent(policy=reinforce_policy,
-                                                 trajectory_name='REINFORCE',
-                                                 num_steps=STEPS,
-                                                 function=FUNCTION,
-                                                 dims=DIMS,
-                                                 initial_time_step=initial_ts))
+      reinforce_evaluator.run(initial_ts)
+      sac_evaluator.run(initial_ts)
+      td3_evaluator.run(initial_ts)
+      ppo_evaluator.run(initial_ts)
 
-      sac_trajectories.append(run_rl_agent(policy=sac_policy,
-                                           trajectory_name='SAC',
-                                           num_steps=STEPS,
-                                           function=FUNCTION,
-                                           dims=DIMS,
-                                           initial_time_step=initial_ts))
-
-      td3_trajectories.append(run_rl_agent(policy=td3_policy,
-                                           trajectory_name='TD3',
-                                           num_steps=STEPS,
-                                           function=FUNCTION,
-                                           dims=DIMS,
-                                           initial_time_step=initial_ts))
-
-      ppo_trajectories.append(run_rl_agent(policy=ppo_policy,
-                                           trajectory_name='PPO',
-                                           num_steps=STEPS,
-                                           function=FUNCTION,
-                                           dims=DIMS,
-                                           initial_time_step=initial_ts))
-
-    avg_reinforce = get_average_trajectory(reinforce_trajectories)
-    avg_sac = get_average_trajectory(sac_trajectories)
-    avg_td3 = get_average_trajectory(td3_trajectories)
-    avg_ppo = get_average_trajectory(ppo_trajectories)
+    avg_reinforce = ('REINFORCE', reinforce_evaluator.average_trajectory())
+    avg_sac = ('SAC', sac_evaluator.average_trajectory())
+    avg_td3 = ('TD3', td3_evaluator.average_trajectory())
+    avg_ppo = ('PPO', ppo_evaluator.average_trajectory())
 
     write_to_csv([avg_reinforce, avg_sac, avg_td3, avg_ppo],
                  function=FUNCTION,

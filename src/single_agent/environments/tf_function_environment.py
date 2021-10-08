@@ -18,7 +18,8 @@ MAX_STEPS = 50000
 class TFFunctionEnvironment(tf_environment.TFEnvironment):
   """Single-agent function environment."""
   def __init__(self, function: core.Function, dims,
-               clip_actions: bool = True):
+               duration: int = MAX_STEPS,
+               bounded_actions_spec: bool = True):
     self._function = function
     self._domain_min = tf.cast(function.domain.min, tf.float32)
     self._domain_max = tf.cast(function.domain.max, tf.float32)
@@ -28,7 +29,7 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                                           minimum=-1.0,
                                           maximum=1.0,
                                           name='action')
-    if not clip_actions:
+    if not bounded_actions_spec:
       action_spec = specs.TensorSpec.from_spec(action_spec)
 
     observation_spec = specs.BoundedTensorSpec(shape=(self._dims,),
@@ -46,7 +47,11 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                                                  initial_value=False,
                                                  dtype=tf.bool)
     self._steps_taken = common.create_variable(name='steps_taken',
-                                               initial_value=0, dtype=tf.int32)
+                                               initial_value=0,
+                                               dtype=tf.int32)
+    self._duration = tf.constant(value=duration,
+                                 dtype=tf.int32,
+                                 name='duration')
     self._state = common.create_variable(name='state',
                                          initial_value=self._generator.uniform(
                                            shape=observation_spec.shape,
@@ -54,14 +59,6 @@ class TFFunctionEnvironment(tf_environment.TFEnvironment):
                                            maxval=self._domain_max,
                                            dtype=tf.float32),
                                          dtype=tf.float32)
-
-    self._last_objective_value = common.create_variable(
-      name='last_objective_value',
-      initial_value=self._function(self._state),
-      dtype=tf.float32)
-    self._last_position = common.create_variable(name='last_position',
-                                                 initial_value=self._state,
-                                                 dtype=tf.float32)
 
   def _current_time_step(self) -> ts.TimeStep:
     state = self._state.value()
