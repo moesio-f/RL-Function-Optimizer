@@ -8,6 +8,8 @@ import src.functions.tensorflow_functions as tff
 import src.functions.numpy_functions as npf
 from src.functions import core
 
+# TODO: Check how to run R implementation in this test
+
 array = [1,2,3,4]
 array_lockup = {
   "Ackley"                 : 8.43469444443746497,
