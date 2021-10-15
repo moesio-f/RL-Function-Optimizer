@@ -19,3 +19,4 @@ experiments/models
 experiments/policies
 pylintrc
 results
+output
